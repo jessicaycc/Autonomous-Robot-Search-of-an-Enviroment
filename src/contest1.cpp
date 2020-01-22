@@ -7,17 +7,26 @@
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 
+using namespace std;
+#define N_BUMPER (3)
+#define RAD2DEG(rad) ((rad) * 180. / M_PI)
+#define DEG2RAD(deg) ((deg) * M_PI / 180.)
+
 float posX=0.0, posY=0.0, yaw=0.0;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
-#define N_BUMPER (3)
-#define RAD2DEG(rad) ((rad)*180./M_PI)
-#define DEG2RAD(deg) ((deg)*M_PI/180.)
+int32_t nLasers=0, desiredNLasers = 0, desiredAngle=5;
+std::vector<float> lasers; 
+float minLaserDist = std::numeric_limits<float>::infinity();
+enum STATE_ENUM {reset, left_wall, find_wall};
+STATE_ENUM state = reset;
+
+
 
 #include <stdio.h>
 #include <cmath>
 
 #include <chrono>
-using namespace std;
+
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
@@ -31,6 +40,26 @@ void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 {
 	//fill with your code
+    minLaserDist = std::numeric_limits<float>::infinity();
+    nLasers = (msg->angle_max - msg->angle_min)/msg->angle_increment;
+    
+    desiredNLasers = desiredAngle*M_PI / (180*msg->angle_increment);
+    if (desiredAngle * M_PI / 180 < msg->angle_max && -desiredAngle * M_PI / 180 > msg->angle_min) {
+        for (uint32_t laser_idx = nLasers / 2 - desiredNLasers; laser_idx < nLasers / 2 + desiredNLasers; ++laser_idx){
+            minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]);
+        }
+    }
+    else {
+        for (uint32_t laser_idx = 0; laser_idx < nLasers; ++laser_idx) {
+            minLaserDist = std::min(minLaserDist, msg->ranges[laser_idx]);
+        }
+    }
+    lasers.clear();
+    
+    for (uint32_t laser_i = 0; laser_i < nLasers; laser_i++)
+    {
+        lasers.push_back(msg->ranges[laser_i]);
+    }
 }
 
 void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
@@ -45,7 +74,6 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 
 int main(int argc, char **argv)
 {
-    std::cout <<"hello, super kms" <<std::endl;
     ros::init(argc, argv, "image_listener");
     ros::NodeHandle nh;
 
@@ -56,7 +84,6 @@ int main(int argc, char **argv)
     ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
 
     ros::Rate loop_rate(10);
-    std::cout <<"hello, kms" <<std::endl;
 
     geometry_msgs::Twist vel;
 
@@ -70,13 +97,60 @@ int main(int argc, char **argv)
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
+        
         //fill with your code
-        /*
+        ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
         bool any_bumper_pressed = false;
         for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx) {
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
-        //
+        switch(state)
+        {
+            case reset:
+                ROS_INFO("reset");
+                if (lasers.empty())
+                {
+                    break;
+                }
+                if (lasers[(int)(nLasers/2)] >0.5)
+                {
+                    linear = 0.25;
+                    angular = 0.0;
+                }
+                else
+                {
+                    linear = 0;
+                    angular = M_PI/12;
+                }
+                
+        }
+        /*
+        if (posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed) {
+            angular = 0.0;
+            linear = 0.2;
+        }
+        else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed) {
+            angular = M_PI / 6;
+            linear = 0.0;
+        }
+        else if (minLaserDist > 1. && !any_bumper_pressed) {
+            linear = 0.1;
+            if (yaw < 17 / 36 * M_PI || posX > 0.6) {
+                angular = M_PI / 12.;
+            }
+            else if (yaw < 19 / 36 * M_PI || posX < 0.4) {
+                angular = -M_PI / 12.;
+            }
+            else {
+                angular = 0;
+            }
+        }
+        else {
+            angular = 0.0;
+            linear = 0.0;
+        }
+        */
+        /*
         // Control logic after bumpers are being pressed.
         if (posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed) {
             angular = 0.0;
@@ -90,9 +164,7 @@ int main(int argc, char **argv)
             angular = 0.0;
             linear = 0.0;
         }
-*/  
-        angular = 1;
-        linear = 0;
+        */
         vel.angular.z = angular;
         vel.linear.x = linear;
         vel_pub.publish(vel);
