@@ -49,7 +49,7 @@ int main(int argc, char **argv)
     ros::Subscriber map_sub = nh.subscribe("map", 10, &mapCallback);
     ros::Rate loop_rate(10);
     while(ros::ok()) {
-        //std::cout << "Printing" << endl;
+        std::cout << "Printing" << endl;
         ros::spinOnce();
         //ROS_INFO("running");
         loop_rate.sleep();
