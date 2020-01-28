@@ -7,10 +7,10 @@
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 
-using namespace std;
 #define N_BUMPER (3)
-#define RAD2DEG(rad) ((rad) * 180. / M_PI)
-#define DEG2RAD(deg) ((deg) * M_PI / 180.)
+#define RAD2DEG(rad) ((rad)*180./M_PI)
+#define DEG2RAD(deg) ((deg)*M_PI/180.)
+
 
 float posX=0.0, posY=0.0, yaw=0.0;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
@@ -92,8 +92,8 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    float angular = 0.0;
-    float linear = 0.0;
+    float angular = 0.2;
+    float linear = 0.1;
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
