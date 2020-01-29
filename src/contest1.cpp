@@ -7,17 +7,17 @@
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 
+using namespace std;
 #define N_BUMPER (3)
-#define RAD2DEG(rad) ((rad)*180./M_PI)
-#define DEG2RAD(deg) ((deg)*M_PI/180.)
-
+#define RAD2DEG(rad) ((rad) * 180. / M_PI)
+#define DEG2RAD(deg) ((deg) * M_PI / 180.)
 
 float posX=0.0, posY=0.0, yaw=0.0;
 uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEvent::RELEASED};
 int32_t nLasers=0, desiredNLasers = 0, desiredAngle=5;
 std::vector<float> lasers; 
 float minLaserDist = std::numeric_limits<float>::infinity();
-enum STATE_ENUM {reset, left_wall, find_wall};
+enum STATE_ENUM {reset, left_wall_follow, left_wall_turn_right};
 STATE_ENUM state = reset;
 
 
@@ -83,7 +83,7 @@ int main(int argc, char **argv)
 
     ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
 
-    ros::Rate loop_rate(10);
+    ros::Rate loop_rate(20);
 
     geometry_msgs::Twist vel;
 
@@ -92,38 +92,124 @@ int main(int argc, char **argv)
     start = std::chrono::system_clock::now();
     uint64_t secondsElapsed = 0;
 
-    float angular = 0.2;
-    float linear = 0.1;
+    float angular = 0.0;
+    float linear = 0.0;
+    int direction = 0;
+
 
     while(ros::ok() && secondsElapsed <= 480) {
         ros::spinOnce();
         
         //fill with your code
         ROS_INFO("Postion: (%f, %f) Orientation: %f degrees Range: %f", posX, posY, RAD2DEG(yaw), minLaserDist);
+        if (!lasers.empty()){
+            ROS_INFO("%f, %f, %f", lasers[(int)(nLasers/2)], lasers[10], lasers[nLasers-10]);
+        }
+        
         bool any_bumper_pressed = false;
         for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx) {
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
+        if (lasers.empty())
+        {
+            linear = 0;
+            angular = 0.0;
+        }
+        else if (lasers[(int)(nLasers/2 -1)] >0.1 && lasers[10]>0.01 && lasers[nLasers-10]>0.01 )
+        {
+            linear = 0.25;
+            if (direction ==0)
+            {
+                angular = -0.2;
+            }
+            else
+            {
+                angular = 0.2;
+            }
+            
+            
+        }
+        else if (direction ==0)
+        {
+            linear = 0.0;
+            angular = 0.4;
+        }
+        else
+        {
+            linear = 0.0;
+            angular = -0.4;
+        }
+        if (direction ==0 && secondsElapsed >100 && (abs(posX)<0.2 && abs(posY)<0.2))
+        {
+            direction =1;
+        }
+        /*
         switch(state)
         {
             case reset:
+
+            
                 ROS_INFO("reset");
                 if (lasers.empty())
                 {
                     break;
                 }
-                if (lasers[(int)(nLasers/2)] >0.5)
+                if (lasers[(int)(nLasers/2)] >0.5 && lasers[0]>0.5 && lasers[nLasers-1]>0.5)
                 {
                     linear = 0.25;
                     angular = 0.0;
                 }
                 else
                 {
-                    linear = 0;
-                    angular = M_PI/12;
+                    if (lasers[(int)(nLasers/2)] <0.5 || lasers[nLasers -1] <0.5)
+                    {
+                        state = left_wall_turn_right;
+                    }
+                    else
+                    {
+                        state =left_wall_follow;
+                    }
                 }
+                break;
+            case left_wall_follow:
+                ROS_INFO("left wall follow");
+                if (lasers[(int)(nLasers/2)] >0.5)
+                {
+                    linear = 0.25;
+                    angular = 0;
+                    if (lasers[0]>0.5)
+                    {
+                        angular = 0.3;
+                    }
+                    if (lasers[0] <0.25)
+                    {
+                        angular = -0.3;
+                    }
+                    
+                }
+                else
+                {
+                    state = left_wall_turn_right;
+                }
+                break;
+            case left_wall_turn_right:
+                ROS_INFO("left wall turn right");
+                cout << lasers[0] << "," << lasers[(int)(nLasers/2)] << "," <<lasers[nLasers-1]  <<endl;
+                if (lasers[(int)(nLasers/2)] >0.5 && lasers[nLasers -1]>0.25 && lasers[0]>0.25)
+                {
+                    state = left_wall_follow;state = left_wall_follow;
+                }
+                else
+                {
+                    linear = 0;
+                    angular = -0.4;
+                    
+                }
+                break;
+*/
+
                 
-        }
+                
         /*
         if (posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed) {
             angular = 0.0;
@@ -169,7 +255,7 @@ int main(int argc, char **argv)
         vel.linear.x = linear;
         vel_pub.publish(vel);
         
-        std::cout <<"hello" <<std::endl;
+  
         // The last thing to do is to update the timer.
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
         loop_rate.sleep();
