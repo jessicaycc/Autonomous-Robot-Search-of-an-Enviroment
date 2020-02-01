@@ -1,3 +1,4 @@
+#include "frontier_search.h"
 #include <ros/console.h>
 #include "ros/ros.h"
 #include <geometry_msgs/Twist.h>
