@@ -16,6 +16,16 @@ bool is_a_frontier_point(pair<int,int> p){
 	
 }
 
+void frontierodomCallback(const nav_msgs::Odometry::ConstPtr& msg)
+{
+    pose_odom[0] = msg->pose.pose.position.x;
+    pose_odom[1] = msg->pose.pose.position.y;
+
+    ROS_INFO("Position:(%f, %f) ", pose_odom,pose_odom);
+
+}
+
+
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers){
 	//pick out the median frontier point from each set
 	vector<pair<int, int>> destinations;
@@ -60,10 +70,19 @@ vector<pair<int,int>> findNeighbours(pair<int,int> p){
 
 vector< vector<pair<int,int>>> wfd()
 {
+	ros::Subscriber frontierodom = nh.subscribe("odom", 1, frontierodomCallback);
 	//Store all new frontiers here
+	
+	
+	
+		
+		
 	vector<vector<pair<int, int>>> list_of_frontiers;
 	std::cout<<"INITIALIZING WFD: OCC_GRID/HEIGHT" << occ_width <<"/" << occ_height << std::endl;
-	std::cout<<"INITIALIZING POSE: " << pose_pos[0] <<", " << pose_pos[1] << std::endl;
+	std::cout<<"INITIALIZING POSE: " << pose_odom[0] <<", " << pose_odom[1] << std::endl;
+	
+	
+	
 	//For keeping track of visited
 	vector<vector<int>> marker_list(
 		occ_height,
@@ -72,7 +91,9 @@ vector< vector<pair<int,int>>> wfd()
 
 	//BFS queue 1
 	queue<pair<int, int>> queue_m;
-	pair<int, int> pose(int(round(pose_pos[0])), int(round(pose_pos[1])));
+	
+	
+	pair<int, int> pose(int(round(pose_odom[0])), int(round(pose_odom[1])));
 	//get_current_pose();
 
 	while(!queue_m.empty()){
