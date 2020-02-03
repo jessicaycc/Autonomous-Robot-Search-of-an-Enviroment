@@ -14,14 +14,15 @@
 #include <cmath>
 
 #include <chrono>
+#include "globals.h"
 
 using namespace std;
 
 void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 {
-    float stamp = msg->info.resolution;
-    int width = msg->info.width;
-    int height = msg->info.height;
+    float res = msg->info.resolution;
+    uint32_t width = msg->info.width;
+    uint32_t height = msg->info.height;
 
 
     /*
@@ -30,9 +31,13 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     posY = msg->pose.pose.position.y;
     yaw = tf::getYaw(msg->pose.pose.orientation);
     tf::getYaw(msg->pose.pose.orientation);*/
-    ROS_INFO("Resolution: %f", stamp);
+    ROS_INFO("Resolution: %f", res);
     ROS_INFO("Map dim: %d x %d", width, height);
+    occ_height = height;
+    occ_width = width;
     ROS_INFO("Origin: x: %f, y: %f, z: %f", msg->info.origin.position.x, msg->info.origin.position.y, msg->info.origin.position.z);
+    
+
     for(int i=0; i<width*height; i++){
         if(i%width==0){
             std::cout << "\n";
@@ -41,10 +46,10 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
         std::cout << prob << ",";
     }
 }
-
+/*
 int main(int argc, char **argv)
 {
-    ros::init(argc, argv, "image_listener");
+    ros::init(argc, argv, "map_listener");
     ros::NodeHandle nh;
     ros::Subscriber map_sub = nh.subscribe("map", 10, &mapCallback);
     ros::Rate loop_rate(10);
@@ -54,4 +59,4 @@ int main(int argc, char **argv)
         //ROS_INFO("running");
         loop_rate.sleep();
     }
-}   
+}   */

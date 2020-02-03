@@ -8,6 +8,14 @@
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
 
+#include <geometry_msgs/Point.h>
+#include <geometry_msgs/Quaternion.h>
+
+#include <stdio.h>
+#include <cmath>
+
+#include <chrono>
+
 using namespace std;
 #define N_BUMPER (3)
 #define RAD2DEG(rad) ((rad) * 180. / M_PI)
@@ -18,17 +26,20 @@ uint8_t bumper[3] = {kobuki_msgs::BumperEvent::RELEASED, kobuki_msgs::BumperEven
 int32_t nLasers=0, desiredNLasers = 0, desiredAngle=5;
 std::vector<float> lasers; 
 float minLaserDist = std::numeric_limits<float>::infinity();
-enum STATE_ENUM {reset, left_wall_follow, left_wall_turn_right};
+enum STATE_ENUM {reset, wall_follow};
 STATE_ENUM state = reset;
 float left_laser_dist, forward_laser_dist , right_laser_dist;
 int left_unseen_count = 0;
+int right_unseen_count = 0;
+
+/* Occupancy grid callback globals */
+uint32_t occ_width = 0;  //Occupancy grid meta data 
+uint32_t occ_height = 0;
+std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
+float pose_pos [3] = {-1, -1, -1}; //xyz
+float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
 
 
-
-#include <stdio.h>
-#include <cmath>
-
-#include <chrono>
 
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
@@ -52,6 +63,42 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
         lasers.push_back(msg->ranges[laser_i]);
     }
 }
+
+void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+{
+    float res = msg->info.resolution;
+    uint32_t width = msg->info.width;
+    uint32_t height = msg->info.height;
+
+
+    /*
+    stamp = msg->time
+    posX = msg->pose.pose.position.x;
+    posY = msg->pose.pose.position.y;
+    yaw = tf::getYaw(msg->pose.pose.orientation);
+    tf::getYaw(msg->pose.pose.orientation);*/
+    ROS_INFO("Resolution: %f", res);
+    ROS_INFO("Map dim: %d x %d", width, height);
+    occ_height = height;
+    occ_width = width;
+    ROS_INFO("Origin: x: %f, y: %f, z: %f", msg->info.origin.position.x, msg->info.origin.position.y, msg->info.origin.position.z);
+    pose_pos[0] = msg->info.origin.position.x;
+    pose_pos[1] = msg->info.origin.position.y;
+    pose_pos[2] = msg->info.origin.position.z;
+    pose_orientation[0] = msg->info.origin.orientation.x;
+    pose_orientation[1] = msg->info.origin.orientation.y;
+    pose_orientation[2] = msg->info.origin.orientation.z;
+    pose_orientation[3] = msg->info.origin.orientation.w;
+    
+    for(int i=0; i<width*height; i++){
+        if(i%width==0){
+            std::cout << "\n";
+        }
+        int prob = msg->data[i];
+        std::cout << prob << ",";
+    }
+}
+
 float get_min_laser_dist(int min_laser_idx, int max_laser_idx)
 {
     return *std::min_element(lasers.begin()+min_laser_idx, lasers.begin() + max_laser_idx);
@@ -108,10 +155,22 @@ int main(int argc, char **argv)
         }
         if (!lasers.empty())
         {
-            left_laser_dist = get_min_laser_dist(nLasers-20, nLasers-1);
-            forward_laser_dist = get_min_laser_dist(nLasers/2 - 20, nLasers -50);
-            right_laser_dist = get_min_laser_dist(0, 10); 
+            if (direction ==0)
+            {
+                 left_laser_dist = get_min_laser_dist(nLasers-10, nLasers-1);
+                forward_laser_dist = get_min_laser_dist(nLasers/2 - 20, nLasers -50);
+                right_laser_dist = get_min_laser_dist(0, 10); 
+            }
+            else
+            {
+                left_laser_dist = get_min_laser_dist(nLasers-10, nLasers-1);
+                forward_laser_dist = get_min_laser_dist(50, nLasers/2 +20);
+                right_laser_dist = get_min_laser_dist(0, 10); 
+            }
+            
+           
         }
+       
         
         switch(state)
         {
@@ -135,12 +194,12 @@ int main(int argc, char **argv)
                 }
                 else 
                 {
-                    state =left_wall_follow;
+                    state =wall_follow;
                     
                 }
                 break;
-            case left_wall_follow:
-                ROS_INFO("left wall follow");
+            case wall_follow:
+                ROS_INFO(" wall follow");
                 if (lasers.empty())
                 {
                     linear = 0;
@@ -153,23 +212,45 @@ int main(int argc, char **argv)
                     angular = 0;
                     ROS_INFO("%f, %f, %f", left_laser_dist, forward_laser_dist, right_laser_dist);
 
-                    if (forward_laser_dist <.7 || left_laser_dist <.7|| right_laser_dist <.7)
+                    if (forward_laser_dist <.7 || left_laser_dist <.5|| right_laser_dist <.5)
                     {   
                         linear = 0;
-                        angular = -0.7;
-                        if (left_laser_dist <.5)
+                        if (direction == 0) //left
                         {
-                            angular = 0.4;
+                            angular = -0.7;
+                            if (right_laser_dist <.5)
+                            {
+                                angular = 0.4;
+                            }
+                        }
+                        else //right
+                        {
+                            angular = 0.7;
+                            if (left_laser_dist <.5)
+                            {
+                                angular = -0.4;
+                            }
                         }
                         left_unseen_count =0;
+                        right_unseen_count = 0;
                     }
                     else if (isnan(forward_laser_dist)  && isnan(left_laser_dist) && isnan( right_laser_dist))
                     {
+                        if (direction == 0) //left
+                        {
+                            angular = -0.4;
+                        }
+                        else
+                        {
+                            angular = 0.4;
+                        }
+                        
                         linear = 0;
-                        angular = -0.4;
+                        
                         left_unseen_count =0;
+                        right_unseen_count = 0;
                     }
-                    else if (left_laser_dist > 1 )
+                    else if (left_laser_dist > 1 && direction ==0)
                     {
                         linear =0.2;
                         angular = 0.2;
@@ -181,153 +262,33 @@ int main(int argc, char **argv)
                             ROS_INFO("sharp left");
                         }
                     }
-
-                    
-                }
-                break;
-                
-                /*
-                else if (lasers[(int)(nLasers/2 -1)] >0.1 && lasers[10]>0.01 && lasers[nLasers-10]>0.01 )
-                {
-                    linear = 0.25;
-                    if (direction ==0)
+                    else if (right_laser_dist > 1 && direction ==1)
                     {
+                        linear =0.2;
                         angular = -0.2;
+                        right_unseen_count +=1;
+                        if (right_unseen_count >70 && right_unseen_count <1000)
+                        {
+                            linear =0.05;
+                            angular = -0.4;
+                            ROS_INFO("sharp right");
+                        }
                     }
-                    else
-                    {
-                        angular = 0.2;
-                    }
-                    
-                    
-                }
-                else if (direction ==0)
-                {
-                    linear = 0.0;
-                    angular = 0.4;
-                }
-                else
-                {
-                    linear = 0.0;
-                    angular = -0.4;
-                }
-                if (direction ==0 && secondsElapsed >100 && (abs(posX)<0.2 && abs(posY)<0.2))
-                {
-                    direction =1;
-                }
-                */
-               
 
+                    
+                }
+                break;
         }
-       
-        /*
-        switch(state)
+                
+        if (secondsElapsed >30)
         {
-            case reset:
-
-            
-                ROS_INFO("reset");
-                if (lasers.empty())
-                {
-                    break;
-                }
-                if (lasers[(int)(nLasers/2)] >0.5 && lasers[0]>0.5 && lasers[nLasers-1]>0.5)
-                {
-                    linear = 0.25;
-                    angular = 0.0;
-                }
-                else
-                {
-                    if (lasers[(int)(nLasers/2)] <0.5 || lasers[nLasers -1] <0.5)
-                    {
-                        state = left_wall_turn_right;
-                    }
-                    else
-                    {
-                        state =left_wall_follow;
-                    }
-                }
-                break;
-            case left_wall_follow:
-                ROS_INFO("left wall follow");
-                if (lasers[(int)(nLasers/2)] >0.5)
-                {
-                    linear = 0.25;
-                    angular = 0;
-                    if (lasers[0]>0.5)
-                    {
-                        angular = 0.3;
-                    }
-                    if (lasers[0] <0.25)
-                    {
-                        angular = -0.3;
-                    }
-                    
-                }
-                else
-                {
-                    state = left_wall_turn_right;
-                }
-                break;
-            case left_wall_turn_right:
-                ROS_INFO("left wall turn right");
-                cout << lasers[0] << "," << lasers[(int)(nLasers/2)] << "," <<lasers[nLasers-1]  <<endl;
-                if (lasers[(int)(nLasers/2)] >0.5 && lasers[nLasers -1]>0.25 && lasers[0]>0.25)
-                {
-                    state = left_wall_follow;state = left_wall_follow;
-                }
-                else
-                {
-                    linear = 0;
-                    angular = -0.4;
-                    
-                }
-                break;
-*/
-
-                
-                
-        /*
-        if (posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed) {
-            angular = 0.0;
-            linear = 0.2;
+            direction =1;
         }
-        else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed) {
-            angular = M_PI / 6;
-            linear = 0.0;
+        if (any_bumper_pressed)
+        {
+            angular = 0;
+            linear = -0.2;
         }
-        else if (minLaserDist > 1. && !any_bumper_pressed) {
-            linear = 0.1;
-            if (yaw < 17 / 36 * M_PI || posX > 0.6) {
-                angular = M_PI / 12.;
-            }
-            else if (yaw < 19 / 36 * M_PI || posX < 0.4) {
-                angular = -M_PI / 12.;
-            }
-            else {
-                angular = 0;
-            }
-        }
-        else {
-            angular = 0.0;
-            linear = 0.0;
-        }
-        */
-        /*
-        // Control logic after bumpers are being pressed.
-        if (posX < 0.5 && yaw < M_PI / 12 && !any_bumper_pressed) {
-            angular = 0.0;
-            linear = 0.2;
-        }
-        else if (yaw < M_PI / 2 && posX > 0.5 && !any_bumper_pressed) {
-            angular = M_PI / 6;
-            linear = 0.0;
-        }
-        else {
-            angular = 0.0;
-            linear = 0.0;
-        }
-        */
         vel.angular.z = angular;
         vel.linear.x = linear;
         vel_pub.publish(vel);

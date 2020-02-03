@@ -20,8 +20,8 @@ using namespace std;
 #include <vector>
 #include <queue>
 
+//Constants for frontier search labels
 enum Marker {MAP_OPEN_LIST=0, MAP_CLOSE_LIST, FRONTIER_OPEN_LIST, FRONTIER_CLOSE_LIST};
-
 
 bool is_a_frontier_point(pair<int,int> p);
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers);

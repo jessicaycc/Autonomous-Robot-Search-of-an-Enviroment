@@ -1,9 +1,5 @@
+#include "globals.h"
 #include "frontier_search.h"
-
-vector<vector<int>> occ_grid;
-
-int occ_grid_width = 0; 
-int occ_grid_height = 0;
 
 bool is_a_frontier_point(pair<int,int> p){
 	vector<pair<int,int>> neighbours = findNeighbours(p);
@@ -36,7 +32,8 @@ bool has_open_neighbour(vector<vector<int>> marker_list, pair<int,int> p){
 	vector<pair<int,int>> neighbours = findNeighbours(p);
 	for(pair<int,int> point: neighbours){
 		if(marker_list[point.second][point.first]==MAP_OPEN_LIST)
-		{return true;
+		{
+			return true;
 		}
 
 	}
