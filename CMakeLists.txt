@@ -21,7 +21,7 @@ catkin_package()
 include_directories(include ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 
 # add the publisher example
-add_executable(contest1 src/contest1.cpp)
+add_executable(contest1 src/contest1.cpp src/frontier_search.cpp)
 #add_executable(test_contest1 src/test_contest1.cpp)
 #add_executable(frontier_search src/frontier_search.cpp)
 

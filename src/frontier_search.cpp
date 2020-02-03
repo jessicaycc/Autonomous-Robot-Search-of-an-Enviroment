@@ -1,5 +1,6 @@
-#include "globals.h"
+
 #include "frontier_search.h"
+#include "globals.h"
 
 bool is_a_frontier_point(pair<int,int> p){
 	vector<pair<int,int>> neighbours = findNeighbours(p);
@@ -47,7 +48,7 @@ vector<pair<int,int>> findNeighbours(pair<int,int> p){
 	for(auto d: directions){
 		pair<int, int> temp = {p.first + d.first, p.second + d.second};
 		if(temp.first < 0 || temp.second < 0 || 
-			temp.first >= occ_grid_height || temp.second >= occ_grid_width || 
+			temp.first >= occ_height || temp.second >= occ_width || 
 			occ_grid[temp.second][temp.first] >=10)
 		{
 			continue;
@@ -64,8 +65,8 @@ vector< vector<pair<int,int>>> wfd()
 
 	//For keeping track of visited
 	vector<vector<int>> marker_list(
-		occ_grid_height,
-		vector<int>(occ_grid_width, -1)
+		occ_height,
+		vector<int>(occ_width, -1)
 	); //y,x form (y rows of x length)
 
 	//BFS queue 1

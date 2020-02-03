@@ -39,9 +39,6 @@ std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
 float pose_pos [3] = {-1, -1, -1}; //xyz
 float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
 
-
-
-
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
 	//fill with your code
@@ -69,8 +66,7 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     float res = msg->info.resolution;
     uint32_t width = msg->info.width;
     uint32_t height = msg->info.height;
-
-
+    
     /*
     stamp = msg->time
     posX = msg->pose.pose.position.x;
@@ -279,7 +275,13 @@ int main(int argc, char **argv)
                 }
                 break;
         }
-                
+        
+        if (secondsElapsed > 10){
+            std::vector<std::vector<pair<int,int>>> list_of_frontiers = wfd();
+            std::vector<pair<int,int>> list_of_medians = get_medians(list_of_frontiers);
+            std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
+        }
+
         if (secondsElapsed >30)
         {
             direction =1;
