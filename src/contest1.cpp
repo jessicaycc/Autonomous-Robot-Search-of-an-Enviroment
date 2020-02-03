@@ -85,14 +85,14 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     pose_orientation[1] = msg->info.origin.orientation.y;
     pose_orientation[2] = msg->info.origin.orientation.z;
     pose_orientation[3] = msg->info.origin.orientation.w;
-    
+    /*
     for(int i=0; i<width*height; i++){
         if(i%width==0){
             std::cout << "\n";
         }
         int prob = msg->data[i];
         std::cout << prob << ",";
-    }
+    }*/
 }
 
 float get_min_laser_dist(int min_laser_idx, int max_laser_idx)
@@ -119,7 +119,7 @@ int main(int argc, char **argv)
     ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
     ros::Subscriber laser_sub = nh.subscribe("scan", 10, &laserCallback);
     ros::Subscriber odom = nh.subscribe("odom", 1, odomCallback);
-
+    ros::Subscriber map_sub = nh.subscribe("map", 10, &mapCallback);
     ros::Publisher vel_pub = nh.advertise<geometry_msgs::Twist>("cmd_vel_mux/input/teleop", 1);
 
     ros::Rate loop_rate(20);

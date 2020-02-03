@@ -62,7 +62,8 @@ vector< vector<pair<int,int>>> wfd()
 {
 	//Store all new frontiers here
 	vector<vector<pair<int, int>>> list_of_frontiers;
-
+	std::cout<<"INITIALIZING WFD: OCC_GRID/HEIGHT" << occ_width <<"/" << occ_height << std::endl;
+	std::cout<<"INITIALIZING POSE: " << pose_pos[0] <<", " << pose_pos[1] << std::endl;
 	//For keeping track of visited
 	vector<vector<int>> marker_list(
 		occ_height,
@@ -71,7 +72,7 @@ vector< vector<pair<int,int>>> wfd()
 
 	//BFS queue 1
 	queue<pair<int, int>> queue_m;
-	pair<int, int> pose(1,1);
+	pair<int, int> pose(int(round(pose_pos[0])), int(round(pose_pos[1])));
 	//get_current_pose();
 
 	while(!queue_m.empty()){
@@ -125,6 +126,8 @@ vector< vector<pair<int,int>>> wfd()
 		}
 		marker_list[p.second][p.first] = MAP_CLOSE_LIST;	
 	}
+	
+	return list_of_frontiers;
 }
 	
 

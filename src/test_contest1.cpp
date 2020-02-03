@@ -14,7 +14,7 @@
 #include <cmath>
 
 #include <chrono>
-#include "globals.h"
+//#include "globals.h"
 
 using namespace std;
 
@@ -33,8 +33,6 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     tf::getYaw(msg->pose.pose.orientation);*/
     ROS_INFO("Resolution: %f", res);
     ROS_INFO("Map dim: %d x %d", width, height);
-    occ_height = height;
-    occ_width = width;
     ROS_INFO("Origin: x: %f, y: %f, z: %f", msg->info.origin.position.x, msg->info.origin.position.y, msg->info.origin.position.z);
     
 
@@ -46,7 +44,7 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
         std::cout << prob << ",";
     }
 }
-/*
+
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "map_listener");
@@ -59,4 +57,4 @@ int main(int argc, char **argv)
         //ROS_INFO("running");
         loop_rate.sleep();
     }
-}   */
+}   
