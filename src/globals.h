@@ -5,5 +5,6 @@
 extern std::vector<std::vector<int>> occ_grid;
 extern int occ_width;
 extern int occ_height;
+extern float pose_odom[2];
 extern float pose_pos[3];
 extern float pose_orientation[4];
