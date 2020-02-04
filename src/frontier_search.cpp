@@ -21,8 +21,6 @@ void frontierodomCallback(const nav_msgs::Odometry::ConstPtr& msg)
     pose_odom[0] = msg->pose.pose.position.x;
     pose_odom[1] = msg->pose.pose.position.y;
 
-    ROS_INFO("Position:(%f, %f) ", pose_odom,pose_odom);
-
 }
 
 
@@ -70,7 +68,6 @@ vector<pair<int,int>> findNeighbours(pair<int,int> p){
 
 vector< vector<pair<int,int>>> wfd()
 {
-	ros::Subscriber frontierodom = nh.subscribe("odom", 1, frontierodomCallback);
 	//Store all new frontiers here
 	
 	
