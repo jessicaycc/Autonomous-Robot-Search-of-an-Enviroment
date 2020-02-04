@@ -38,6 +38,7 @@ uint32_t occ_height = 0;
 std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
 float pose_pos [3] = {-1, -1, -1}; //xyz
 float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
+float pose_odom[2];
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
