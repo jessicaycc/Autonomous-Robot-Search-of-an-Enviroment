@@ -8,8 +8,10 @@ using namespace std;
 
 #include <nav_msgs/Odometry.h>
 #include <tf/transform_datatypes.h>
+#include <tf/transform_listener.h>
 #include <nav_msgs/OccupancyGrid.h>
 #include <nav_msgs/MapMetaData.h>
+#include <geometry_msgs/PointStamped.h>
 #include <time.h>
 
 #include <stdio.h>
@@ -27,4 +29,4 @@ bool is_a_frontier_point(pair<int,int> p);
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers);
 bool is_open_neighbour(vector<vector<int>> marker_list, pair<int,int> p);
 vector<pair<int,int>> findNeighbours(pair<int,int> p);
-vector< vector<pair<int,int>>> wfd();
+vector< vector<pair<int,int>>> wfd(ros::NodeHandle &nh);

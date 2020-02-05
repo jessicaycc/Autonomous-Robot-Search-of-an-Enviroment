@@ -12,7 +12,8 @@ find_package(catkin REQUIRED COMPONENTS
 	genmsg
 	image_transport
 	sensor_msgs
-	kobuki_msgs)
+	kobuki_msgs
+        tf)
 
 generate_messages(DEPENDENCIES sensor_msgs kobuki_msgs)
 

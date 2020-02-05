@@ -37,8 +37,10 @@ uint32_t occ_width = 0;  //Occupancy grid meta data
 uint32_t occ_height = 0;
 std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
 float pose_pos [3] = {-1, -1, -1}; //xyz
+float pose_origin [3] = {-1, -1, -1}; //xyz
 float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
-float pose_odom[2];
+float res;
+
 
 void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr& msg)
 {
@@ -64,7 +66,7 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
 
 void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
 {
-    float res = msg->info.resolution;
+    res = msg->info.resolution;
     uint32_t width = msg->info.width;
     uint32_t height = msg->info.height;
     
@@ -79,21 +81,23 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     occ_height = height;
     occ_width = width;
     ROS_INFO("Origin: x: %f, y: %f, z: %f", msg->info.origin.position.x, msg->info.origin.position.y, msg->info.origin.position.z);
-    pose_pos[0] = msg->info.origin.position.x;
-    pose_pos[1] = msg->info.origin.position.y;
-    pose_pos[2] = msg->info.origin.position.z;
+    pose_origin[0] = msg->info.origin.position.x;
+    pose_origin[1] = msg->info.origin.position.y;
+    pose_origin[2] = msg->info.origin.position.z;
     pose_orientation[0] = msg->info.origin.orientation.x;
     pose_orientation[1] = msg->info.origin.orientation.y;
     pose_orientation[2] = msg->info.origin.orientation.z;
     pose_orientation[3] = msg->info.origin.orientation.w;
-    /*
+    occ_grid = vector<vector<int>> (
+		occ_height,
+		vector<int>(occ_width, -1)
+	); //y,x form (y rows of x length)
+
     for(int i=0; i<width*height; i++){
-        if(i%width==0){
-            std::cout << "\n";
-        }
+        
         int prob = msg->data[i];
-        std::cout << prob << ",";
-    }*/
+        occ_grid[i/width][i%width] = msg->data[i];
+    }
 }
 
 float get_min_laser_dist(int min_laser_idx, int max_laser_idx)
@@ -105,6 +109,8 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 {
     posX = msg->pose.pose.position.x;
     posY = msg->pose.pose.position.y;
+    pose_pos[0] = msg->pose.pose.position.x;
+    pose_pos[1] = msg->pose.pose.position.y;
     yaw = tf::getYaw(msg->pose.pose.orientation);
     tf::getYaw(msg->pose.pose.orientation);
     ROS_INFO("Position:(%f, %f) Orientation: %f rad or %f degrees.", posX,posY, yaw, RAD2DEG(yaw));
@@ -115,6 +121,7 @@ void odomCallback(const nav_msgs::Odometry::ConstPtr& msg)
 int main(int argc, char **argv)
 {
     ros::init(argc, argv, "image_listener");
+    /* nh */
     ros::NodeHandle nh;
 
     ros::Subscriber bumper_sub = nh.subscribe("mobile_base/events/bumper", 10, &bumperCallback);
@@ -277,10 +284,22 @@ int main(int argc, char **argv)
                 break;
         }
         
-        if (secondsElapsed > 10){
-            std::vector<std::vector<pair<int,int>>> list_of_frontiers = wfd();
+        if (secondsElapsed > 10 && secondsElapsed % 2==0){
+            std::vector<std::vector<pair<int,int>>> list_of_frontiers = wfd(nh);
             std::vector<pair<int,int>> list_of_medians = get_medians(list_of_frontiers);
             std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
+            for(int i = 0; i<list_of_medians.size(); i++){
+                std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
+                occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
+            }
+            
+            for(int i=0; i<occ_height; i++){
+		        for(int j=0; j<occ_width; j++){
+                    
+        	        std::cout << occ_grid[i][j]<<",";
+		        }
+		        std::cout << "\n";
+            }
         }
 
         if (secondsElapsed >30)
