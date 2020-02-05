@@ -31,6 +31,7 @@ STATE_ENUM state = reset;
 float left_laser_dist, forward_laser_dist , right_laser_dist;
 int left_unseen_count = 0;
 int right_unseen_count = 0;
+int backup_counter = 0;
 
 /* Occupancy grid callback globals */
 uint32_t occ_width = 0;  //Occupancy grid meta data 
@@ -58,7 +59,16 @@ void laserCallback(const sensor_msgs::LaserScan::ConstPtr& msg)
     
     for (uint32_t laser_i = 0; laser_i < nLasers; laser_i++)
     {
-        lasers.push_back(msg->ranges[laser_i]);
+        if (isnan(msg->ranges[laser_i]))
+        {
+            lasers.push_back(100);
+        }
+        else
+        {
+           lasers.push_back(msg->ranges[laser_i]);
+        }
+        
+        
     }
 }
 
@@ -147,27 +157,35 @@ int main(int argc, char **argv)
         }
         
         bool any_bumper_pressed = false;
+        bool left_bumper_pressed = (bumper[0] == kobuki_msgs::BumperEvent::PRESSED);
+        bool front_bumper_pressed = (bumper[1] == kobuki_msgs::BumperEvent::PRESSED);
+        bool right_bumper_pressed =(bumper[2] == kobuki_msgs::BumperEvent::PRESSED);
+        ROS_INFO("bumpers %d, %d, %d", left_bumper_pressed, front_bumper_pressed, right_bumper_pressed );
         for (uint32_t b_idx = 0; b_idx < N_BUMPER; ++b_idx) {
             any_bumper_pressed |= (bumper[b_idx] == kobuki_msgs::BumperEvent::PRESSED);
         }
+
         if (!lasers.empty())
         {
             if (direction ==0)
             {
-                 left_laser_dist = get_min_laser_dist(nLasers-10, nLasers-1);
-                forward_laser_dist = get_min_laser_dist(nLasers/2 - 20, nLasers -50);
+                left_laser_dist = get_min_laser_dist(nLasers-10, nLasers-1);
+                forward_laser_dist = get_min_laser_dist(nLasers/2 - 150, nLasers/2 +150);
                 right_laser_dist = get_min_laser_dist(0, 10); 
             }
             else
             {
                 left_laser_dist = get_min_laser_dist(nLasers-10, nLasers-1);
-                forward_laser_dist = get_min_laser_dist(50, nLasers/2 +20);
-                right_laser_dist = get_min_laser_dist(0, 10); 
+                forward_laser_dist = get_min_laser_dist(nLasers/2 - 150, nLasers/2 +150);
+                right_laser_dist = get_min_laser_dist(0, 30); 
             }
+            ROS_INFO("%f, %f, %f", left_laser_dist, forward_laser_dist, right_laser_dist);
+
+
             
            
         }
-       
+
         
         switch(state)
         {
@@ -179,18 +197,15 @@ int main(int argc, char **argv)
                 {
                     break;
                 }
-                if (left_laser_dist >0.25 && forward_laser_dist>0.5 && right_laser_dist >0.25)
+                if (get_min_laser_dist(0, nLasers -1) <50 && get_min_laser_dist(0, nLasers -1) >.5)
                 {
                     linear = 0.25;
                     angular = 0.0;
                 }
-                else if (right_laser_dist <0.25)
-                {
-                    linear = 0;
-                    angular = 0.4;
-                }
                 else 
                 {
+                    linear = 0.0;
+                    angular = 0.0;
                     state =wall_follow;
                     
                 }
@@ -207,31 +222,26 @@ int main(int argc, char **argv)
                     
                     linear = 0.25;
                     angular = 0;
-                    ROS_INFO("%f, %f, %f", left_laser_dist, forward_laser_dist, right_laser_dist);
-
-                    if (forward_laser_dist <.7 || left_laser_dist <.5|| right_laser_dist <.5)
+                    
+                    if (forward_laser_dist <.5 || left_laser_dist <.5|| right_laser_dist <.5
+                    ||(direction == 1 && right_laser_dist >50)
+                    ||(direction ==0 && left_laser_dist >50))
                     {   
                         linear = 0;
                         if (direction == 0) //left
                         {
                             angular = -0.7;
-                            if (right_laser_dist <.5)
-                            {
-                                angular = 0.4;
-                            }
+                            
                         }
                         else //right
                         {
                             angular = 0.7;
-                            if (left_laser_dist <.5)
-                            {
-                                angular = -0.4;
-                            }
+                            
                         }
                         left_unseen_count =0;
                         right_unseen_count = 0;
                     }
-                    else if (isnan(forward_laser_dist)  && isnan(left_laser_dist) && isnan( right_laser_dist))
+                    else if (forward_laser_dist> 50 || (left_laser_dist>50 &&right_laser_dist>50))
                     {
                         if (direction == 0) //left
                         {
@@ -247,26 +257,26 @@ int main(int argc, char **argv)
                         left_unseen_count =0;
                         right_unseen_count = 0;
                     }
-                    else if (left_laser_dist > 1 && direction ==0)
+                    else if (left_laser_dist > 1 && left_laser_dist <50 && direction ==0)
                     {
                         linear =0.2;
                         angular = 0.2;
                         left_unseen_count +=1;
-                        if (left_unseen_count >70 && left_unseen_count <1000)
+                        if (left_unseen_count >50 && left_unseen_count <1000)
                         {
                             linear =0.05;
                             angular = 0.4;
                             ROS_INFO("sharp left");
                         }
                     }
-                    else if (right_laser_dist > 1 && direction ==1)
+                    else if (right_laser_dist > 1 && right_laser_dist <50 && direction ==1)
                     {
                         linear =0.2;
                         angular = -0.2;
                         right_unseen_count +=1;
-                        if (right_unseen_count >70 && right_unseen_count <1000)
+                        if (right_unseen_count >50 && right_unseen_count <1000)
                         {
-                            linear =0.05;
+                            linear =0.01;
                             angular = -0.4;
                             ROS_INFO("sharp right");
                         }
@@ -282,21 +292,44 @@ int main(int argc, char **argv)
             std::vector<pair<int,int>> list_of_medians = get_medians(list_of_frontiers);
             std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
         }
-
-        if (secondsElapsed >30)
+   
+        if (secondsElapsed >120)
         {
             direction =1;
         }
-        if (any_bumper_pressed)
+        if (front_bumper_pressed)
         {
+            linear = -0.1;
             angular = 0;
-            linear = -0.2;
+            
+        }
+        else if (left_bumper_pressed)
+        {
+           
+            linear = -0.1;
+            angular = -0.3;
+        }
+        else if (right_bumper_pressed)
+        {
+            linear = -0.1;
+            angular = 0.3;
+            
+        }
+        if (any_bumper_pressed)
+        {   
+            for (int i = 0; i <25; i++)
+            {
+                vel.angular.z = angular;
+                vel.linear.x = linear;
+                vel_pub.publish(vel);
+                loop_rate.sleep();
+            }
         }
         vel.angular.z = angular;
         vel.linear.x = linear;
         vel_pub.publish(vel);
         
-  
+        
         // The last thing to do is to update the timer.
         secondsElapsed = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-start).count();
         loop_rate.sleep();
