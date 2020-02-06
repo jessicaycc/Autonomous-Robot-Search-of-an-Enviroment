@@ -11,18 +11,18 @@
 #include <tf/transform_datatypes.h>
 
 #include "wall_follow.h"
-//#include "frontier_search.h"
+#include "frontier_search.h"
 #include "globals.h"
 
-/* Occupancy grid callback globals *//*
-uint32_t occ_width = 0;  //Occupancy grid meta data 
-uint32_t occ_height = 0;
+/* Occupancy grid callback globals */
+int occ_width = 0;  //Occupancy grid meta data 
+int occ_height = 0;
 std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
 float pose_pos [3] = {-1, -1, -1}; //xyz
 float pose_origin [3] = {-1, -1, -1}; //xyz
 float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
 float res;
-*/
+
 #define TO_RAD(_DEG)    ((_DEG) * M_PI/180)
 #define TO_DEG(_RAD)    ((_RAD) * 180/M_PI)
 
@@ -265,7 +265,7 @@ geometry_msgs::Twist Controller::update()
 
         return ret;
 }
-/*
+
 std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
 {
         std::chrono::time_point<std::chrono::system_clock> wfd_time;
@@ -281,7 +281,7 @@ std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
         }
 
         return list_of_medians;
-}*/
+}
 
 int main(int argc, char **argv)
 {
