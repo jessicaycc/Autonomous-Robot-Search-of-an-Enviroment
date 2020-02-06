@@ -294,17 +294,16 @@ geometry_msgs::Twist Controller::update()
 
 std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
 {
-        std::chrono::time_point<std::chrono::system_clock> wfd_time;
+        /*Returns a vector of pairs of x,y coordinates as destination targets */
         std::vector<pair<int,int>> list_of_medians = wfd(tf_listener);
-            //get_medians(list_of_frontiers);
+                
+        /*
+        //Debugging code to plot the medians on occ_grid
         std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
-        int secondsElapsed2 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-wfd_time).count();
-        std::cout << "Seconds Elapsed on WFD: " << secondsElapsed2 << std::endl;
-            
         for(int i = 0; i<list_of_medians.size(); i++){
-        std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
+                std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
                 occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
-        }
+        } */
 
         return list_of_medians;
 }

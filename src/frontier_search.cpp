@@ -2,6 +2,7 @@
 #include "globals.h"
 
 const int MEDIAN_SIZE_LIMITER = 10;
+const bool print_times = false;
 
 bool is_a_frontier_point(const pair<int,int> &p){
 	if(occ_grid[p.first][p.second] == -1){
@@ -76,23 +77,25 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	//Get initial point
 	
 
-	ROS_INFO("Initializing transform");
-	std::cout << "Start timing" << endl;
-    auto start = std::chrono::system_clock::now();
+	ROS_INFO("Start frontier search: Initializing transform");
+
+	//std::cout << "Start timing" << endl;
+	//auto start = std::chrono::system_clock::now();
+	
+
 	listener.waitForTransform("/map", "/odom", ros::Time::now(), ros::Duration(1.0));
-
-
-
-
 	ros::Time cur_time = ros::Time::now();
-
 	listener.waitForTransform("/map", "/odom", cur_time, ros::Duration(10.0));
-	auto end = std::chrono::system_clock::now();    
-    auto elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
-    std::cout << "Elapsed time" << elapsed.count() << '\n';
 
-	std::cout << "Start BFS timing" << endl;
-    start = std::chrono::system_clock::now();
+	
+	//auto end = std::chrono::system_clock::now();    
+	//auto elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+	//std::cout << "Elapsed time" << elapsed.count() << '\n';
+
+	//std::cout << "Start BFS timing" << endl;
+	//start = std::chrono::system_clock::now();
+	
+
 	geometry_msgs::PointStamped cur_pose_stamped;
 	cur_pose_stamped.header.frame_id = "/odom";
 	cur_pose_stamped.header.stamp = cur_time;
@@ -107,7 +110,7 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	//listener.waitForTransform("/map", "/odom", cur_time, ros::Duration(10.0));
 	listener.transformPoint("/map", cur_pose_stamped, cur_pose_stamped);
 
-//ROS_INFO("%s", dest.header.frame_id.c_str());
+	//ROS_INFO("%s", dest.header.frame_id.c_str());
 	//ROS_INFO("CUR_POSE is (%.3f, %.3f, %.3f)", pose_pos[0], pose_pos[1], pose_pos[2]);
 	
 
@@ -212,15 +215,15 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	vector<pair<int, int>> list_of_medians_odom;
 	pair<int, int> median_odom;
 
-	end = std::chrono::system_clock::now();    
-	elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
-    std::cout << "Elapsed time for BFS: " << elapsed.count() << '\n';
+	//end = std::chrono::system_clock::now();    
+	//elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    //std::cout << "Elapsed time for BFS: " << elapsed.count() << '\n';
 
-	start = std::chrono::system_clock::now();
-	listener.waitForTransform("/odom", "/map", cur_time, ros::Duration(10.0));
+	//start = std::chrono::system_clock::now();
+	//listener.waitForTransform("/odom", "/map", cur_time, ros::Duration(10.0));
 
 
-
+	/* Convert back to map frame */
 	geometry_msgs::PointStamped cyc_pose_stamped;
 	cyc_pose_stamped.header.frame_id = "/map";
 	cyc_pose_stamped.header.stamp = cur_time;
@@ -238,10 +241,11 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 
 
 	}
+	/*
 	end = std::chrono::system_clock::now();    
 	elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
     std::cout << "Elapsed time to return medians: " << elapsed.count() << '\n';
-
+	*/
 	return list_of_medians;
 }
 	
