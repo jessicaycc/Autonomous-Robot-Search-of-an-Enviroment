@@ -11,7 +11,18 @@
 #include <tf/transform_datatypes.h>
 
 #include "wall_follow.h"
+//#include "frontier_search.h"
+#include "globals.h"
 
+/* Occupancy grid callback globals *//*
+uint32_t occ_width = 0;  //Occupancy grid meta data 
+uint32_t occ_height = 0;
+std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
+float pose_pos [3] = {-1, -1, -1}; //xyz
+float pose_origin [3] = {-1, -1, -1}; //xyz
+float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
+float res;
+*/
 #define TO_RAD(_DEG)    ((_DEG) * M_PI/180)
 #define TO_DEG(_RAD)    ((_RAD) * 180/M_PI)
 
@@ -66,7 +77,7 @@ private:
 
         int time_limit;
 
-        const double tol = 1e-2;
+        const double tol = 1e-1;
         const double vlmax = 0.25;
         const double vamax = 0.4;
 
@@ -234,13 +245,13 @@ geometry_msgs::Twist Controller::update()
                 if (wall_following && onPath()) {
                         ROS_INFO("Back on track.");
                         wall_following = false;
-                        time_limit = 10;
+                        time_limit = 500;
                 }
 
                 if (!wall_following && detectWall()) {
                         ROS_INFO("Wall detected!");
                         wall_following = true;
-                        time_limit = 10;
+                        time_limit = 500;
                 }
         }
         else {
@@ -254,6 +265,23 @@ geometry_msgs::Twist Controller::update()
 
         return ret;
 }
+/*
+std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
+{
+        std::chrono::time_point<std::chrono::system_clock> wfd_time;
+        std::vector<pair<int,int>> list_of_medians = wfd(tf_listener);
+            //get_medians(list_of_frontiers);
+        std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
+        int secondsElapsed2 = std::chrono::duration_cast<std::chrono::seconds>(std::chrono::system_clock::now()-wfd_time).count();
+        std::cout << "Seconds Elapsed on WFD: " << secondsElapsed2 << std::endl;
+            
+        for(int i = 0; i<list_of_medians.size(); i++){
+        std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
+                occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
+        }
+
+        return list_of_medians;
+}*/
 
 int main(int argc, char **argv)
 {
@@ -280,13 +308,15 @@ int main(int argc, char **argv)
 
         dest.header.frame_id = "/odom";
         dest.header.stamp = ros::Time::now();
-        dest.point.x = -2.5;
+        dest.point.x = 5;
         dest.point.y = 0;
 
         controller.set(dest);
         controller.start();
 
         ros::Rate rate(20);
+        tf::TransformListener tf_listener(nh);
+
 
         while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
