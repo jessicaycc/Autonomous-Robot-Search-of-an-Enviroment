@@ -25,8 +25,8 @@ using namespace std;
 //Constants for frontier search labels
 enum Marker {MAP_OPEN_LIST=0, MAP_CLOSE_LIST, FRONTIER_OPEN_LIST, FRONTIER_CLOSE_LIST};
 
-bool is_a_frontier_point(pair<int,int> p);
+bool is_a_frontier_point(const pair<int,int> &p);
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers);
-bool is_open_neighbour(vector<vector<int>> marker_list, pair<int,int> p);
-vector<pair<int,int>> findNeighbours(pair<int,int> p);
+bool has_open_neighbour(const vector<vector<int>> &marker_list, const pair<int,int> &p);
+vector<pair<int,int>> findNeighbours(const pair<int,int> &p);
 vector<pair<int,int>> wfd(tf::TransformListener &tf_listener);

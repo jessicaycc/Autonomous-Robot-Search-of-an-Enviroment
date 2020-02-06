@@ -3,7 +3,7 @@
 
 const int MEDIAN_SIZE_LIMITER = 10;
 
-bool is_a_frontier_point(pair<int,int> p){
+bool is_a_frontier_point(const pair<int,int> &p){
 	if(occ_grid[p.first][p.second] == -1){
 		return false;
 	}
@@ -37,7 +37,7 @@ vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontier
 	return destinations; 
 }
 
-bool has_open_neighbour(vector<vector<int>> marker_list, pair<int,int> p){
+bool has_open_neighbour(const vector<vector<int>> &marker_list, const pair<int,int> &p){
 	//this point has a neighbour that is map_open_list
 
 	vector<pair<int,int>> neighbours = findNeighbours(p);
@@ -50,7 +50,7 @@ bool has_open_neighbour(vector<vector<int>> marker_list, pair<int,int> p){
 	}
 	return false;
 }
-vector<pair<int,int>> findNeighbours(pair<int,int> p){
+vector<pair<int,int>> findNeighbours(const pair<int,int> &p){
 	//BFS find adj neighbours
 	static vector<pair<int,int>> directions = {{-1,-1},{-1,0},{-1,1},{0,-1},{0,1},{1,-1},{1,0}, {1,1}}; 
 	//static vector<pair<int,int>> directions = {{-1,0},{0,-1},{0,1},{1,0}}; 
@@ -77,8 +77,9 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	
 
 	ROS_INFO("Initializing transform");
-
-	listener.waitForTransform("/map", "/odom", ros::Time::now(), ros::Duration(10.0));
+	std::cout << "Start timing" << endl;
+    auto start = std::chrono::system_clock::now();
+	listener.waitForTransform("/map", "/odom", ros::Time::now(), ros::Duration(1.0));
 
 
 
@@ -86,9 +87,12 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	ros::Time cur_time = ros::Time::now();
 
 	listener.waitForTransform("/map", "/odom", cur_time, ros::Duration(10.0));
+	auto end = std::chrono::system_clock::now();    
+    auto elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Elapsed time" << elapsed.count() << '\n';
 
-
-
+	std::cout << "Start BFS timing" << endl;
+    start = std::chrono::system_clock::now();
 	geometry_msgs::PointStamped cur_pose_stamped;
 	cur_pose_stamped.header.frame_id = "/odom";
 	cur_pose_stamped.header.stamp = cur_time;
@@ -104,7 +108,7 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	listener.transformPoint("/map", cur_pose_stamped, cur_pose_stamped);
 
 //ROS_INFO("%s", dest.header.frame_id.c_str());
-	ROS_INFO("CUR_POSE is (%.3f, %.3f, %.3f)", pose_pos[0], pose_pos[1], pose_pos[2]);
+	//ROS_INFO("CUR_POSE is (%.3f, %.3f, %.3f)", pose_pos[0], pose_pos[1], pose_pos[2]);
 	
 
 
@@ -115,10 +119,10 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 
 
 
-	ROS_INFO("MAP_POSE is (%.3f, %.3f, %.3f)", cur_pose_stamped.point.x, cur_pose_stamped.point.y, cur_pose_stamped.point.z);
+	//ROS_INFO("MAP_POSE is (%.3f, %.3f, %.3f)", cur_pose_stamped.point.x, cur_pose_stamped.point.y, cur_pose_stamped.point.z);
 	//ROS_INFO("Grid_Point is (%.3f, %.3f)", map_grid.first, map_grid.second);
 
-	ROS_INFO("ORIGIN_POSE is (%.3f, %.3f, %.3f)", pose_origin[0], pose_origin[1], pose_origin[2]);
+	//ROS_INFO("ORIGIN_POSE is (%.3f, %.3f, %.3f)", pose_origin[0], pose_origin[1], pose_origin[2]);
 
 	
 
@@ -138,13 +142,13 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	//BFS queue 1
 	queue<pair<int, int>> queue_m;
 	int value_at_initial = occ_grid[map_grid.first][map_grid.second];
-	std::cout << "Value at initial" << value_at_initial << std::endl;
-	std::cout << "x/y: " <<map_grid.first << "/" << map_grid.second << endl;
+	//std::cout << "Value at initial" << value_at_initial << std::endl;
+	//std::cout << "x/y: " <<map_grid.first << "/" << map_grid.second << endl;
 	//pair<int, int> pose(int(round(cur_pose_stamped.point.x)), int(round(cur_pose_stamped.point.y)));
 	//get_current_pose();
 	queue_m.push(map_grid);
 	marker_list[map_grid.first][map_grid.second] = MAP_OPEN_LIST;
-	std::cout << "PUSHING MAP GRID" << std::endl;
+	//std::cout << "PUSHING MAP GRID" << std::endl;
 	while(!queue_m.empty()){
 		pair<int, int> p = queue_m.front();
 		queue_m.pop();
@@ -208,9 +212,11 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	vector<pair<int, int>> list_of_medians_odom;
 	pair<int, int> median_odom;
 
+	end = std::chrono::system_clock::now();    
+	elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Elapsed time for BFS: " << elapsed.count() << '\n';
 
-
-
+	start = std::chrono::system_clock::now();
 	listener.waitForTransform("/odom", "/map", cur_time, ros::Duration(10.0));
 
 
@@ -232,7 +238,9 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 
 
 	}
-
+	end = std::chrono::system_clock::now();    
+	elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+    std::cout << "Elapsed time to return medians: " << elapsed.count() << '\n';
 
 	return list_of_medians;
 }

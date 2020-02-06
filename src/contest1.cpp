@@ -4,6 +4,7 @@
 #include <ros/ros.h>
 #include <ros/console.h>
 #include <nav_msgs/Odometry.h>
+#include <nav_msgs/OccupancyGrid.h>
 #include <geometry_msgs/Twist.h>
 #include <sensor_msgs/LaserScan.h>
 #include <kobuki_msgs/BumperEvent.h>
@@ -91,10 +92,12 @@ private:
         ros::Subscriber sub_odom;
         ros::Subscriber sub_laser;
         ros::Subscriber sub_bump;
+        ros::Subscriber sub_map;
 
         void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
         void laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg);
         void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg);
+        void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg);
 
         bool detectWall();
         bool onPath();
@@ -141,6 +144,29 @@ void Controller::laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg)
 void Controller::bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg)
 {
         _bumperCallback(msg);
+}
+
+void Controller::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+{
+    res = msg->info.resolution;
+    occ_height = msg->info.height;
+    occ_width = msg->info.width;
+    pose_origin[0] = msg->info.origin.position.x;
+    pose_origin[1] = msg->info.origin.position.y;
+    pose_origin[2] = msg->info.origin.position.z;
+    pose_orientation[0] = msg->info.origin.orientation.x;
+    pose_orientation[1] = msg->info.origin.orientation.y;
+    pose_orientation[2] = msg->info.origin.orientation.z;
+    pose_orientation[3] = msg->info.origin.orientation.w;
+    occ_grid = vector<vector<int>> (
+		occ_height,
+		vector<int>(occ_width, -1)
+	); //y,x form (y rows of x length)
+
+    for(int i=0; i<occ_width*occ_height; i++){
+        int prob = msg->data[i];
+        occ_grid[i/occ_width][i%occ_width] = msg->data[i];
+    }
 }
 
 void Controller::set(geometry_msgs::PointStamped &point)

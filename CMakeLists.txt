@@ -24,3 +24,7 @@ include_directories(include ${OpenCV_INCLUDE_DIRS} ${catkin_INCLUDE_DIRS})
 # add the publisher example
 add_executable(contest1 src/contest1.cpp src/wall_follow.cpp src/frontier_search.cpp)
 target_link_libraries(contest1 ${catkin_LIBRARIES} ${OpenCV_LIB})
+
+# test runtime of frontier
+add_executable(testc1 src/test_contest1.cpp src/frontier_search.cpp)
+target_link_libraries(testc1 ${catkin_LIBRARIES} ${OpenCV_LIB})
