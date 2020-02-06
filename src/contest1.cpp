@@ -23,8 +23,8 @@ template <typename T> int sgn(T val)
 class Controller
 {
         enum class Direction {
-                LEFT,
                 RIGHT,
+                LEFT,
         };
 
         struct Point2D {
@@ -64,9 +64,11 @@ private:
         bool arrived_;
         bool wall_following;
 
+        int time_limit;
+
         const double tol = 1e-2;
         const double vlmax = 0.25;
-        const double vamax = 0.25;
+        const double vamax = 0.4;
 
         std::vector<double> lasers;
 
@@ -154,6 +156,7 @@ void Controller::start()
 void Controller::stop()
 {
         stopped = true;
+        time_limit = 0;
 
         vel.linear = 0;
         vel.angular = 0;
@@ -168,7 +171,7 @@ bool Controller::detectWall()
 
         min_dist = *std::min_element(lasers.begin(), lasers.end());
 
-        if ((min_dist < 50) && (min_dist > 0.5))
+        if ((min_dist > 50) || (min_dist < 0.5))
                 return true;
         else
                 return false;
@@ -227,18 +230,25 @@ geometry_msgs::Twist Controller::update()
         if (stopped)
                 return ret;
 
-        if (wall_following && onPath()) {
-                ROS_INFO("Back on track.");
-                wall_following = false;
-        }
+        if (time_limit == 0) {
+                if (wall_following && onPath()) {
+                        ROS_INFO("Back on track.");
+                        wall_following = false;
+                        time_limit = 10;
+                }
 
-        if (!wall_following && detectWall()) {
-                ROS_INFO("Wall detected!");
-                wall_following = true;
+                if (!wall_following && detectWall()) {
+                        ROS_INFO("Wall detected!");
+                        wall_following = true;
+                        time_limit = 10;
+                }
+        }
+        else {
+                time_limit--;
         }
 
         if (wall_following)
-                ret = followWall(Direction::LEFT);
+                ret = followWall(Direction::RIGHT);
         else
                 ret = goStraight();
 
@@ -270,13 +280,13 @@ int main(int argc, char **argv)
 
         dest.header.frame_id = "/odom";
         dest.header.stamp = ros::Time::now();
-        dest.point.x = 0.5;
-        dest.point.y = -1.5;
+        dest.point.x = -2.5;
+        dest.point.y = 0;
 
         controller.set(dest);
         controller.start();
 
-        ros::Rate rate(10);
+        ros::Rate rate(20);
 
         while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
