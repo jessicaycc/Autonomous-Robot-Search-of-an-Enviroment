@@ -334,10 +334,10 @@ geometry_msgs::Twist Controller::update()
         return ret;
 }
 
-std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
+std::vector<pair<double,double>> frontier_medians(tf::TransformListener &tf_listener)
 {
         /*Returns a vector of pairs of x,y coordinates as destination targets */
-        std::vector<pair<int,int>> list_of_medians = wfd(tf_listener);
+        std::vector<pair<double,double>> list_of_medians = wfd(tf_listener);
 
         /*
         //Debugging code to plot the medians on occ_grid
@@ -361,7 +361,7 @@ int main(int argc, char **argv)
 
         int index = 0;
         pair<int,int> dest;
-        std::vector<pair<int,int>> list_of_frontiers;
+        std::vector<pair<double,double>> list_of_frontiers;
 
         /* Initialize ros environment.
          */

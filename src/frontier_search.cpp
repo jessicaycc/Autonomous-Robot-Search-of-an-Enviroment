@@ -70,7 +70,7 @@ vector<pair<int,int>> findNeighbours(const pair<int,int> &p){
 	return neighbours;
 }
 
-vector<pair<int,int>> wfd(tf::TransformListener &listener)
+vector<pair<double,double>> wfd(tf::TransformListener &listener)
 {
 	//Store all new frontiers here
 	
@@ -212,8 +212,8 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 
 	vector<pair<int,int>> list_of_medians = get_medians(list_of_frontiers);
 
-	vector<pair<int, int>> list_of_medians_odom;
-	pair<int, int> median_odom;
+	vector<pair<double, double>> list_of_medians_odom;
+	pair<double, double> median_odom;
 
 	//end = std::chrono::system_clock::now();    
 	//elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
@@ -231,8 +231,8 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	
 
 	for(pair<int, int> median: list_of_medians){
-		cyc_pose_stamped.point.x = median.second;
-		cyc_pose_stamped.point.y = median.first;
+		cyc_pose_stamped.point.x = median.second*res + pose_origin[0];
+		cyc_pose_stamped.point.y = median.first*res + pose_origin[1];
 		cyc_pose_stamped.point.z = 0;
 		listener.transformPoint("/odom", cyc_pose_stamped, cyc_pose_stamped);
 		median_odom.first = cyc_pose_stamped.point.x;
@@ -246,7 +246,7 @@ vector<pair<int,int>> wfd(tf::TransformListener &listener)
 	elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
     std::cout << "Elapsed time to return medians: " << elapsed.count() << '\n';
 	*/
-	return list_of_medians;
+	return list_of_medians_odom;
 }
 	
 
