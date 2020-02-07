@@ -16,16 +16,13 @@
 #include "globals.h"
 
 /* Occupancy grid callback globals */
-int occ_width = 0;  //Occupancy grid meta data 
+int occ_width = 0;  //Occupancy grid meta data
 int occ_height = 0;
 std::vector<std::vector<int>> occ_grid;  //Occupancy grid map
 float pose_pos [3] = {-1, -1, -1}; //xyz
 float pose_origin [3] = {-1, -1, -1}; //xyz
 float pose_orientation [4] = {-1, -1, -1, -1}; //Quaternion xyzw
 float res;
-
-#define TO_RAD(_DEG)    ((_DEG) * M_PI/180)
-#define TO_DEG(_RAD)    ((_RAD) * 180/M_PI)
 
 template <typename T> int sgn(T val)
 {
@@ -37,6 +34,15 @@ class Controller
         enum class Direction {
                 RIGHT,
                 LEFT,
+        };
+
+        enum class State {
+                NONE,
+                FOLLOW_WALL,
+                BEE_LINE,
+                GO_STRAIGHT,
+                STOPPED,
+                ARRIVED,
         };
 
         struct Point2D {
@@ -63,24 +69,23 @@ class Controller
 public:
         Controller(ros::NodeHandle &nh);
 
-        void set(geometry_msgs::PointStamped &point);
+        void start(geometry_msgs::PointStamped &point);
         void start(void);
-        void stop(void);
+        void reset(void);
 
         geometry_msgs::Twist update(void);
 
-        bool arrived() const { return arrived_; }
+        bool arrived() { return state == State::ARRIVED; }
 
 private:
-        bool stopped;
-        bool arrived_;
-        bool wall_following;
-
-        int time_limit;
-
-        const double tol = 1e-1;
+        const double tol = 0.25;
         const double vlmax = 0.25;
         const double vamax = 0.4;
+
+        int state_timer;
+        bool exploring;
+        Controller::State state;
+        Controller::Direction dir;
 
         std::vector<double> lasers;
 
@@ -97,13 +102,13 @@ private:
         void odomCallback(const nav_msgs::Odometry::ConstPtr &msg);
         void laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg);
         void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg);
-        void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg);
+        void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
 
-        bool detectWall();
+        bool wallDetected();
         bool onPath();
-
-        geometry_msgs::Twist goStraight(void);
-        geometry_msgs::Twist followWall(Controller::Direction dir);
+        bool onTarget();
+        geometry_msgs::Twist gotoPoint(void);
+        geometry_msgs::Twist followWall(void);
 };
 
 Controller::Controller(ros::NodeHandle &nh)
@@ -112,10 +117,7 @@ Controller::Controller(ros::NodeHandle &nh)
         using sensor_msgs::LaserScan;
         using kobuki_msgs::BumperEvent;
 
-        stop();
-
-        arrived_ = false;
-        wall_following = false;
+        reset();
 
         sub_odom = nh.subscribe<Odometry>("/odom", 10,
                 &Controller::odomCallback, this);
@@ -137,7 +139,6 @@ void Controller::odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
 void Controller::laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg)
 {
         _laserCallback(msg);
-
         lasers = _lasers;
 }
 
@@ -146,37 +147,39 @@ void Controller::bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg)
         _bumperCallback(msg);
 }
 
-void Controller::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
+void Controller::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg)
 {
-    res = msg->info.resolution;
-    occ_height = msg->info.height;
-    occ_width = msg->info.width;
-    pose_origin[0] = msg->info.origin.position.x;
-    pose_origin[1] = msg->info.origin.position.y;
-    pose_origin[2] = msg->info.origin.position.z;
-    pose_orientation[0] = msg->info.origin.orientation.x;
-    pose_orientation[1] = msg->info.origin.orientation.y;
-    pose_orientation[2] = msg->info.origin.orientation.z;
-    pose_orientation[3] = msg->info.origin.orientation.w;
-    occ_grid = vector<vector<int>> (
-		occ_height,
-		vector<int>(occ_width, -1)
-	); //y,x form (y rows of x length)
+        res = msg->info.resolution;
+        occ_height = msg->info.height;
+        occ_width = msg->info.width;
 
-    for(int i=0; i<occ_width*occ_height; i++){
-        int prob = msg->data[i];
-        occ_grid[i/occ_width][i%occ_width] = msg->data[i];
-    }
+        pose_origin[0] = msg->info.origin.position.x;
+        pose_origin[1] = msg->info.origin.position.y;
+        pose_origin[2] = msg->info.origin.position.z;
+
+        pose_orientation[0] = msg->info.origin.orientation.x;
+        pose_orientation[1] = msg->info.origin.orientation.y;
+        pose_orientation[2] = msg->info.origin.orientation.z;
+        pose_orientation[3] = msg->info.origin.orientation.w;
+
+        /* y, x form (y rows of x length).
+         */
+        occ_grid = vector<vector<int>>(occ_height, vector<int>(occ_width, -1));
+
+        for (int i = 0; i < occ_width*occ_height; i++) {
+                int prob = msg->data[i];
+                occ_grid[i/occ_width][i%occ_width] = msg->data[i];
+        }
 }
 
-void Controller::set(geometry_msgs::PointStamped &point)
+void Controller::start(geometry_msgs::PointStamped &point)
 {
-        arrived_ = false;
-
         if (point.header.frame_id.compare("/odom")) {
                 ROS_ERROR("Expected frame_id /odom, got frame_id %s",
                         point.header.frame_id.c_str());
         }
+
+        state = State::BEE_LINE;
 
         dest.x = point.point.x;
         dest.y = point.point.y;
@@ -187,19 +190,19 @@ void Controller::set(geometry_msgs::PointStamped &point)
 
 void Controller::start()
 {
-        stopped = false;
+        exploring = true;
+        state = State::GO_STRAIGHT;
 }
 
-void Controller::stop()
+void Controller::reset()
 {
-        stopped = true;
-        time_limit = 0;
-
-        vel.linear = 0;
-        vel.angular = 0;
+        state_timer = 0;
+        exploring = false;
+        state = State::STOPPED;
+        dir = Direction::RIGHT;
 }
 
-bool Controller::detectWall()
+bool Controller::wallDetected()
 {
         double min_dist;
 
@@ -218,29 +221,26 @@ bool Controller::onPath()
 {
         double y = path.m*pose.x + path.b;
 
-        ROS_INFO("Yt: %.3f, Ye: %.3f", y, pose.y);
-
-        if (fabs(pose.y - y) > tol)
-                return false;
-        else
-                return true;
+        return (fabs(pose.y-y) < tol);
 }
 
-geometry_msgs::Twist Controller::goStraight()
+bool Controller::onTarget()
 {
-        double dx, dy, dl, da;
+        double d = hypot(dest.x-pose.x, dest.y-pose.y);
+
+        return (fabs(d) < tol);
+}
+
+geometry_msgs::Twist Controller::gotoPoint()
+{
+        double dx, dy, da;
         geometry_msgs::Twist ret;
 
         dx = dest.x - pose.x;
         dy = dest.y - pose.y;
-        dl = hypot(dx, dy);
         da = remainder(atan2(dy, dx) - pose.theta, 2*M_PI);
 
-        if (fabs(dl) < tol) {
-                arrived_ = true;
-                stop();
-        }
-        else if (fabs(da) > tol) {
+        if (fabs(da) > tol) {
                 vel.linear = 0;
                 vel.angular = sgn(da) * vamax;
         }
@@ -255,7 +255,7 @@ geometry_msgs::Twist Controller::goStraight()
         return ret;
 }
 
-geometry_msgs::Twist Controller::followWall(Controller::Direction dir)
+geometry_msgs::Twist Controller::followWall()
 {
         return _followWall((int) dir);
 }
@@ -263,31 +263,79 @@ geometry_msgs::Twist Controller::followWall(Controller::Direction dir)
 geometry_msgs::Twist Controller::update()
 {
         geometry_msgs::Twist ret;
+        Controller::State old_state = state;
+        Controller::Direction old_dir = dir;
 
-        if (stopped)
+        /* Decide velocity control signal from state.
+         */
+        switch (state)
+        {
+        case State::FOLLOW_WALL:
+                ret = followWall();
+                break;
+        case State::BEE_LINE:
+                ret = gotoPoint();
+                break;
+        case State::GO_STRAIGHT:
+                ret.linear.x = vlmax;
+                ret.angular.z = 0;
+                break;
+        default:
+                ret.linear.x = 0;
+                ret.angular.z = 0;
+                break;
+        };
+
+        /* Do not proceed if the state_timer is set.
+         */
+        if (state_timer > 0) {
+                state_timer--;
                 return ret;
-
-        if (time_limit == 0) {
-                if (wall_following && onPath()) {
-                        ROS_INFO("Back on track.");
-                        wall_following = false;
-                        time_limit = 500;
-                }
-
-                if (!wall_following && detectWall()) {
-                        ROS_INFO("Wall detected!");
-                        wall_following = true;
-                        time_limit = 500;
-                }
-        }
-        else {
-                time_limit--;
         }
 
-        if (wall_following)
-                ret = followWall(Direction::RIGHT);
-        else
-                ret = goStraight();
+        /* Perform a state change if required.
+         */
+        switch (state)
+        {
+        case State::FOLLOW_WALL:
+                if (exploring && onTarget()) {
+                        if (dir == Direction::LEFT)
+                                dir = Direction::RIGHT;
+                        else
+                                dir = Direction::LEFT;
+                }
+
+                if (!exploring && onPath()) {
+                        left_unseen_count  = 0;
+                        right_unseen_count = 0;
+                        state = State::BEE_LINE;
+                }
+                break;
+        case State::BEE_LINE:
+                if (!exploring && wallDetected()) {
+                        state = State::FOLLOW_WALL;
+                }
+
+                if (!exploring && onTarget()) {
+                        state = State::ARRIVED;
+                }
+                break;
+        case State::GO_STRAIGHT:
+                if (exploring && wallDetected()) {
+                        dest.x = pose.x;
+                        dest.y = pose.y;
+                        state = State::FOLLOW_WALL;
+                }
+                break;
+        default:
+                break;
+        };
+
+        /* If the state or direction changed, set the state_timer.
+         */
+        if ((state != old_state) || (dir != old_dir)) {
+                state_timer = 500;
+        }
 
         return ret;
 }
@@ -296,7 +344,7 @@ std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
 {
         /*Returns a vector of pairs of x,y coordinates as destination targets */
         std::vector<pair<int,int>> list_of_medians = wfd(tf_listener);
-                
+
         /*
         //Debugging code to plot the medians on occ_grid
         std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
@@ -323,27 +371,21 @@ int main(int argc, char **argv)
         ros::Publisher pub;
         geometry_msgs::PointStamped dest;
 
-        /* Start the clock, 8 minutes.
-         */
-        start = system_clock::now();
-
         Controller controller(nh);
+        tf::TransformListener tf_listener(nh);
 
         pub = nh.advertise<Twist>("cmd_vel_mux/input/teleop", 1);
 
-        dest.header.frame_id = "/odom";
-        dest.header.stamp = ros::Time::now();
-        dest.point.x = 5;
-        dest.point.y = 0;
+        /* Start the clock, 8 minutes.
+         */
+        start = system_clock::now();
+        ros::Rate rate(20);
 
-        controller.set(dest);
+        /* Start by wall following an obstacle in front for 3 minutes.
+         */
         controller.start();
 
-        ros::Rate rate(20);
-        tf::TransformListener tf_listener(nh);
-
-
-        while (ros::ok() && (timer < 480)) {
+        while (ros::ok() && (timer < 180)) {
                 ros::spinOnce();
 
                 pub.publish(controller.update());
@@ -355,6 +397,26 @@ int main(int argc, char **argv)
 
                 ROS_INFO("Time: %d", timer);
         }
+
+        /* Use frontier search to finish unexplored areas of the map.
+         */
+        // controller.reset();
+
+        // while (ros::ok() && (timer < 300)) {
+        //         ros::spinOnce();
+
+        //         /* TODO: Get frontier point and send it to controller.
+        //          */
+
+        //         pub.publish(controller.update());
+
+        //         rate.sleep();
+
+        //         now = system_clock::now();
+        //         timer = duration_cast<seconds>(now-start).count();
+
+        //         ROS_INFO("Time: %d", timer);
+        // }
 
         return 0;
 }

@@ -7,6 +7,8 @@
 #include <kobuki_msgs/BumperEvent.h>
 
 extern std::vector<double> _lasers;
+extern int left_unseen_count;
+extern int right_unseen_count;
 
 void _laserCallback(const sensor_msgs::LaserScan::ConstPtr &msg);
 void _bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg);

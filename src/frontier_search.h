@@ -1,3 +1,6 @@
+#ifndef FRONTIER_SEARCH_H
+#define FRONTIER_SEARCH_H
+
 using namespace std;
 
 #include <ros/console.h>
@@ -30,3 +33,5 @@ vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontier
 bool has_open_neighbour(const vector<vector<int>> &marker_list, const pair<int,int> &p);
 vector<pair<int,int>> findNeighbours(const pair<int,int> &p);
 vector<pair<int,int>> wfd(tf::TransformListener &tf_listener);
+
+#endif
