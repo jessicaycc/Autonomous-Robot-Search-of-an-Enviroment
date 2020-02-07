@@ -42,7 +42,6 @@ class Controller
                 BEE_LINE,
                 GO_STRAIGHT,
                 STOPPED,
-                ARRIVED,
         };
 
         struct Point2D {
@@ -69,13 +68,13 @@ class Controller
 public:
         Controller(ros::NodeHandle &nh);
 
-        void start(geometry_msgs::PointStamped &point);
+        void start(pair<int,int> point);
         void start(void);
         void reset(void);
 
         geometry_msgs::Twist update(void);
 
-        bool arrived() { return state == State::ARRIVED; }
+        bool stopped() { return state == State::STOPPED; }
 
 private:
         const double tol = 0.25;
@@ -172,17 +171,12 @@ void Controller::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg)
         }
 }
 
-void Controller::start(geometry_msgs::PointStamped &point)
+void Controller::start(pair<int,int> point)
 {
-        if (point.header.frame_id.compare("/odom")) {
-                ROS_ERROR("Expected frame_id /odom, got frame_id %s",
-                        point.header.frame_id.c_str());
-        }
-
         state = State::BEE_LINE;
 
-        dest.x = point.point.x;
-        dest.y = point.point.y;
+        dest.x = point.first;
+        dest.y = point.second;
 
         path.m = (dest.y-pose.y) / (dest.x-pose.x);
         path.b = pose.y - path.m*pose.x;
@@ -238,11 +232,11 @@ geometry_msgs::Twist Controller::gotoPoint()
 
         dx = dest.x - pose.x;
         dy = dest.y - pose.y;
-        da = remainder(atan2(dy, dx) - pose.theta, 2*M_PI);
+        da = remainder(atan2(dy, dx)-pose.theta, 2*M_PI);
 
         if (fabs(da) > tol) {
                 vel.linear = 0;
-                vel.angular = sgn(da) * vamax;
+                vel.angular = sgn(da)*vamax;
         }
         else {
                 vel.linear = vlmax;
@@ -317,7 +311,7 @@ geometry_msgs::Twist Controller::update()
                 }
 
                 if (!exploring && onTarget()) {
-                        state = State::ARRIVED;
+                        state = State::STOPPED;
                 }
                 break;
         case State::GO_STRAIGHT:
@@ -365,11 +359,16 @@ int main(int argc, char **argv)
         time_point<system_clock> start;
         time_point<system_clock> now;
 
+        int index = 0;
+        pair<int,int> dest;
+        std::vector<pair<int,int>> list_of_frontiers;
+
+        /* Initialize ros environment.
+         */
         ros::init(argc, argv, "terrorizing_turtle");
 
         ros::NodeHandle nh;
         ros::Publisher pub;
-        geometry_msgs::PointStamped dest;
 
         Controller controller(nh);
         tf::TransformListener tf_listener(nh);
@@ -398,25 +397,30 @@ int main(int argc, char **argv)
                 ROS_INFO("Time: %d", timer);
         }
 
+        controller.reset();
+
         /* Use frontier search to finish unexplored areas of the map.
+         * Get list of frontiers from frontier search.
          */
-        // controller.reset();
+        list_of_frontiers = frontier_medians(tf_listener);
 
-        // while (ros::ok() && (timer < 300)) {
-        //         ros::spinOnce();
+        while (ros::ok() && (timer < 300)) {
+                ros::spinOnce();
 
-        //         /* TODO: Get frontier point and send it to controller.
-        //          */
+                if (controller.stopped()) {
+                       dest = list_of_frontiers.at(index++);
+                       controller.start(dest);
+                }
 
-        //         pub.publish(controller.update());
+                pub.publish(controller.update());
 
-        //         rate.sleep();
+                rate.sleep();
 
-        //         now = system_clock::now();
-        //         timer = duration_cast<seconds>(now-start).count();
+                now = system_clock::now();
+                timer = duration_cast<seconds>(now-start).count();
 
-        //         ROS_INFO("Time: %d", timer);
-        // }
+                ROS_INFO("Time: %d", timer);
+        }
 
         return 0;
 }
