@@ -18,6 +18,7 @@
 #include <chrono>
 #include "globals.h"
 #include "frontier_search.h"
+#include "make_marker.h"
 using namespace std;
 
 /* Occupancy grid callback globals */
@@ -53,25 +54,6 @@ void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr& msg)
     }
 }
 
-std::vector<pair<int,int>> frontier_medians(tf::TransformListener &tf_listener)
-{
-        //std::cout << "Start timing" << endl;
-        //auto start = std::chrono::system_clock::now();
-        std::vector<pair<int,int>> list_of_medians = wfd(tf_listener);
-            //get_medians(list_of_frontiers);
-        std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
-        //auto end = std::chrono::system_clock::now();    
-        //auto elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
-        //std::cout << "Elapsed time" << elapsed.count() << '\n';
-            
-        for(int i = 0; i<list_of_medians.size(); i++){
-        std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
-                occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
-        }
-
-        return list_of_medians;
-}
-
 int main(int argc, char **argv)
 {   
     auto start = std::chrono::system_clock::now();
@@ -79,7 +61,7 @@ int main(int argc, char **argv)
     ros::NodeHandle nh;
     ros::Subscriber map_sub = nh.subscribe("map", 10, &mapCallback);
     ros::Rate loop_rate(10);
-
+    ros::Publisher marker_pub = nh.advertise<visualization_msgs::Marker>("visualization_marker", 1);
     
 
     while(ros::ok()) {
@@ -88,9 +70,12 @@ int main(int argc, char **argv)
         //ROS_INFO("running");
         auto end = std::chrono::system_clock::now();    
         auto elapsed =     std::chrono::duration_cast<std::chrono::seconds>(end - start);
+        
         if(elapsed.count() > 10) {
             tf::TransformListener tf_listener(nh);
-            frontier_medians(tf_listener);
+            
+            std::vector<std::pair<double, double>> list_of_medians = wfd(tf_listener);
+            generateMarkers(marker_pub, list_of_medians);
         }
         loop_rate.sleep();
     }

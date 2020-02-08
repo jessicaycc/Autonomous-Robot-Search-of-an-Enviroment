@@ -13,7 +13,15 @@
 
 #include "wall_follow.h"
 #include "frontier_search.h"
+
 #include "globals.h"
+
+/*DISABLE RVIZ MARKERS */
+//#define DISABLE_VISUALIZATIONS 
+/*
+#ifndef DISABLE_VISUALIZATIONS
+#include "make_marker.h"
+#endif*/
 
 /* Occupancy grid callback globals */
 int occ_width = 0;  //Occupancy grid meta data
@@ -115,6 +123,7 @@ Controller::Controller(ros::NodeHandle &nh)
         using nav_msgs::Odometry;
         using sensor_msgs::LaserScan;
         using kobuki_msgs::BumperEvent;
+        using nav_msgs::OccupancyGrid;
 
         reset();
 
@@ -126,6 +135,9 @@ Controller::Controller(ros::NodeHandle &nh)
 
         sub_bump = nh.subscribe<BumperEvent>("/mobile_base/events/bumper", 10,
                 &Controller::bumperCallback, this);
+
+        sub_map = nh.subscribe<OccupancyGrid>("/map", 10,
+                &Controller::mapCallback, this);
 }
 
 void Controller::odomCallback(const nav_msgs::Odometry::ConstPtr &msg)
@@ -346,7 +358,7 @@ std::vector<pair<double,double>> frontier_medians(tf::TransformListener &tf_list
                 std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
                 occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
         } */
-
+        
         return list_of_medians;
 }
 
@@ -375,6 +387,12 @@ int main(int argc, char **argv)
 
         pub = nh.advertise<Twist>("cmd_vel_mux/input/teleop", 1);
 
+        /* For visualization, disable during real run */
+/*
+#ifndef DISABLE_VISUALIZATION
+        ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1);
+#endif*/
+
         /* Start the clock, 8 minutes.
          */
         start = system_clock::now();
@@ -384,7 +402,7 @@ int main(int argc, char **argv)
          */
         controller.start();
 
-        while (ros::ok() && (timer < 180)) {
+        while (ros::ok() && (timer < 300)) {
                 ros::spinOnce();
 
                 pub.publish(controller.update());
@@ -403,6 +421,11 @@ int main(int argc, char **argv)
          * Get list of frontiers from frontier search.
          */
         list_of_frontiers = frontier_medians(tf_listener);
+
+/*
+#ifndef DISABLE_VISUALIZATION
+                generate_markers(marker_pub, list_of_frontiers);
+#endif*/
 
         while (ros::ok() && (timer < 300)) {
                 ros::spinOnce();

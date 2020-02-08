@@ -1,7 +1,7 @@
 #include "frontier_search.h"
 #include "globals.h"
 
-const int MEDIAN_SIZE_LIMITER = 10;
+const int MEDIAN_SIZE_LIMITER = 50;
 const bool print_times = false;
 
 bool is_a_frontier_point(const pair<int,int> &p){
@@ -22,16 +22,29 @@ bool is_a_frontier_point(const pair<int,int> &p){
 }
 
 
+
+
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers){
 	//pick out the median frontier point from each set
 	vector<pair<int, int>> destinations;
+	int split;
+	vector<double> priority;
+	int median_position;
+
 	for (auto cur_front: list_of_frontiers){
 		std::cout << "Size of this median was: " << cur_front.size() << std::endl;
-		if(cur_front.size() < MEDIAN_SIZE_LIMITER){
-			continue;
-		}
+		//if(cur_front.size() < MEDIAN_SIZE_LIMITER){
+		//	continue;
+		//}
+		split = cur_front.size()/MEDIAN_SIZE_LIMITER + 1;
+
 		sort(cur_front.begin(), cur_front.end());
-		destinations.push_back(cur_front[cur_front.size()/2]);
+		for (int i = 1; i <= split; i++){
+			median_position = ((cur_front.size()/split)*i)/2;
+			destinations.push_back(cur_front[median_position]);
+			//priority.push_back(exp((double)cur_front.size()/(double)split) - exp())
+		}
+		//destinations.push_back(cur_front[cur_front.size()/2]);
 	}
 	
 
