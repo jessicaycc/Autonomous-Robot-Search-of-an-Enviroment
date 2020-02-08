@@ -76,7 +76,7 @@ class Controller
 public:
         Controller(ros::NodeHandle &nh);
 
-        void start(pair<int,int> point);
+        void start(pair<double,double> point);
         void start(void);
         void reset(void);
 
@@ -87,7 +87,7 @@ public:
 private:
         const double tol = 0.25;
         const double vlmax = 0.25;
-        const double vamax = 0.4;
+        const double vamax = 1;
 
         int state_timer;
         bool exploring;
@@ -183,7 +183,7 @@ void Controller::mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg)
         }
 }
 
-void Controller::start(pair<int,int> point)
+void Controller::start(pair<double,double> point)
 {
         state = State::BEE_LINE;
 
@@ -203,21 +203,33 @@ void Controller::start()
 void Controller::reset()
 {
         state_timer = 0;
+        left_unseen_count = 0;
+        right_unseen_count = 0;
         exploring = false;
         state = State::STOPPED;
-        dir = Direction::RIGHT;
+        dir = Direction::LEFT;
 }
 
 bool Controller::wallDetected()
 {
+        using kobuki_msgs::BumperEvent;
+
         double min_dist;
+        double center_dist;
+
+        for (int i = 0; i < NUM_BUMPER; i++) {
+                if (bumper[i] == BumperEvent::PRESSED)
+                        return true;
+        }
 
         if (lasers.empty())
                 return false;
 
         min_dist = *std::min_element(lasers.begin(), lasers.end());
 
-        if ((min_dist > 50) || (min_dist < 0.5))
+        center_dist = *std::min_element(lasers.begin()+300, lasers.begin()+400);
+
+        if ((min_dist > 50) || (min_dist < 0.5) || (center_dist > 50) || (center_dist < 0.5))
                 return true;
         else
                 return false;
@@ -269,8 +281,6 @@ geometry_msgs::Twist Controller::followWall()
 geometry_msgs::Twist Controller::update()
 {
         geometry_msgs::Twist ret;
-        Controller::State old_state = state;
-        Controller::Direction old_dir = dir;
 
         /* Decide velocity control signal from state.
          */
@@ -309,21 +319,30 @@ geometry_msgs::Twist Controller::update()
                                 dir = Direction::RIGHT;
                         else
                                 dir = Direction::LEFT;
+                        ROS_INFO("Position: (%.3f, %.3f)", pose.x, pose.y);
+                        state_timer = 400;
                 }
 
                 if (!exploring && onPath()) {
+                        if (dir == Direction::LEFT)
+                                dir = Direction::RIGHT;
+                        else
+                                dir = Direction::LEFT;
                         left_unseen_count  = 0;
                         right_unseen_count = 0;
                         state = State::BEE_LINE;
+                        state_timer = 40;
                 }
                 break;
         case State::BEE_LINE:
                 if (!exploring && wallDetected()) {
                         state = State::FOLLOW_WALL;
+                        state_timer = 400;
                 }
 
                 if (!exploring && onTarget()) {
                         state = State::STOPPED;
+                        state_timer = 400;
                 }
                 break;
         case State::GO_STRAIGHT:
@@ -331,17 +350,12 @@ geometry_msgs::Twist Controller::update()
                         dest.x = pose.x;
                         dest.y = pose.y;
                         state = State::FOLLOW_WALL;
+                        state_timer = 400;
                 }
                 break;
         default:
                 break;
         };
-
-        /* If the state or direction changed, set the state_timer.
-         */
-        if ((state != old_state) || (dir != old_dir)) {
-                state_timer = 500;
-        }
 
         return ret;
 }
@@ -372,7 +386,7 @@ int main(int argc, char **argv)
         time_point<system_clock> now;
 
         int index = 0;
-        pair<int,int> dest;
+        pair<double,double> dest;
         std::vector<pair<double,double>> list_of_frontiers;
 
         /* Initialize ros environment.
@@ -412,7 +426,7 @@ int main(int argc, char **argv)
                 now = system_clock::now();
                 timer = duration_cast<seconds>(now-start).count();
 
-                ROS_INFO("Time: %d", timer);
+                // ROS_INFO("Time: %d", timer);
         }
 
         controller.reset();
@@ -442,7 +456,7 @@ int main(int argc, char **argv)
                 now = system_clock::now();
                 timer = duration_cast<seconds>(now-start).count();
 
-                ROS_INFO("Time: %d", timer);
+                // ROS_INFO("Time: %d", timer);
         }
 
         return 0;

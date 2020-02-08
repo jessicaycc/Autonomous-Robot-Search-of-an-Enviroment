@@ -8,8 +8,6 @@
 
 #include "wall_follow.h"
 
-#define NUM_BUMPER    3
-
 int bumper[] = {
         kobuki_msgs::BumperEvent::RELEASED,
         kobuki_msgs::BumperEvent::RELEASED,
@@ -68,8 +66,8 @@ geometry_msgs::Twist _followWall(int direction)
         bool front_bumper_pressed = (bumper[1] == BumperEvent::PRESSED);
         bool right_bumper_pressed = (bumper[2] == BumperEvent::PRESSED);
 
-        ROS_INFO("Bumpers: %d, %d, %d", left_bumper_pressed,
-                front_bumper_pressed, right_bumper_pressed);
+        // ROS_INFO("Bumpers: %d, %d, %d", left_bumper_pressed,
+        //         front_bumper_pressed, right_bumper_pressed);
 
         for (int i = 0; i < NUM_BUMPER; i++)
                 any_bumper_pressed |= (bumper[i] == BumperEvent::PRESSED);
@@ -114,8 +112,8 @@ geometry_msgs::Twist _followWall(int direction)
                 else
                         right_laser_dist = get_min_laser_dist(0, 30);
 
-                ROS_INFO("Lasers: %f, %f, %f", left_laser_dist,
-                        front_laser_dist, right_laser_dist);
+                // ROS_INFO("Lasers: %f, %f, %f", left_laser_dist,
+                //         front_laser_dist, right_laser_dist);
 
                 linear = 0.25;
                 angular = 0;
@@ -172,8 +170,8 @@ geometry_msgs::Twist _followWall(int direction)
                         angular = -0.2;
                         right_unseen_count++;
 
-                        if ((right_unseen_count > 50)
-                                && (right_unseen_count < 1000))
+                        if ((right_unseen_count > 40)
+                                && (right_unseen_count < 1500))
                         {
                                 ROS_INFO("Sharp right!");
 
