@@ -6,6 +6,9 @@
 #include <sensor_msgs/LaserScan.h>
 #include <kobuki_msgs/BumperEvent.h>
 
+#define NUM_BUMPER    3
+
+extern int bumper[];
 extern std::vector<double> _lasers;
 extern int left_unseen_count;
 extern int right_unseen_count;
