@@ -3,6 +3,8 @@
 
 const int MEDIAN_SIZE_LIMITER = 50;
 const bool print_times = false;
+pair<int, int> map_grid;
+
 
 bool is_a_frontier_point(const pair<int,int> &p){
 	if(occ_grid[p.first][p.second] == -1){
@@ -27,9 +29,11 @@ bool is_a_frontier_point(const pair<int,int> &p){
 vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontiers){
 	//pick out the median frontier point from each set
 	vector<pair<int, int>> destinations;
+	vector<pair<pair<int, int>, double>> des_sort;
 	int split;
-	vector<double> priority;
+	//vector<double> priority;
 	int median_position;
+	double heu_val;
 
 	for (auto cur_front: list_of_frontiers){
 		std::cout << "Size of this median was: " << cur_front.size() << std::endl;
@@ -40,13 +44,27 @@ vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontier
 
 		sort(cur_front.begin(), cur_front.end());
 		for (int i = 1; i <= split; i++){
+			
 			median_position = ((cur_front.size()/split)*i)/2;
-			destinations.push_back(cur_front[median_position]);
-			//priority.push_back(exp((double)cur_front.size()/(double)split) - exp())
+
+
+			//double size_exp = cur_front.size()/(double)split;
+			//double dist_x = (double)(cur_front[median_position].first - map_grid.first);
+			//double dist_y = (double)(cur_front[median_position].second - map_grid.second);
+			//heu_val = exp(size_exp) - exp(sqrt(pow(dist_x, 2) + pow(dist_y, 2)));
+			heu_val = exp(cur_front.size()/(double)split) - exp(sqrt(pow((double)(cur_front[median_position].first - map_grid.first), 2) + pow((double)(cur_front[median_position].second - map_grid.second), 2)));
+			des_sort.push_back(make_pair(cur_front[median_position], heu_val));
+			//priority.push_back()
 		}
 		//destinations.push_back(cur_front[cur_front.size()/2]);
 	}
 	
+	sort(des_sort.begin(), des_sort.end(), [](pair<pair<int, int>, double> a, pair<pair<int, int>, double> b) { return a.second > b.second; });
+
+	for (auto des: des_sort){
+		destinations.push_back(des.first);
+	}
+
 
 	return destinations; 
 }
@@ -128,7 +146,6 @@ vector<pair<double,double>> wfd(tf::TransformListener &listener)
 	
 
 
-	pair<int, int> map_grid;
 	map_grid.second = int(round((cur_pose_stamped.point.x - pose_origin[0])/res));
 	map_grid.first = int(round((cur_pose_stamped.point.y - pose_origin[1])/res));
 
