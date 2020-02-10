@@ -122,29 +122,20 @@ geometry_msgs::Twist _followWall(int direction)
                         || (left_laser_dist < 0.5)
                         || (right_laser_dist < 0.5)
                         || (direction == 1 && right_laser_dist > 50)
-                        || (direction == 0 && left_laser_dist > 50))
+                        || (direction == 0 && left_laser_dist > 50)
+                        ||(front_laser_dist >50)
+                        ||(left_laser_dist > 50 && right_laser_dist > 50))
                 {
-                        linear = 0;
+                        linear = 0.05;
                         left_unseen_count = 0;
                         right_unseen_count = 0;
 
                         if (direction == 0)
-                                angular = -0.7;
+                                angular = -0.3;
                         else
-                                angular = 0.7;
+                                angular = 0.3;
                 }
-                else if ((front_laser_dist > 50)
-                        || (left_laser_dist > 50 && right_laser_dist > 50))
-                {
-                        linear = 0;
-                        left_unseen_count = 0;
-                        right_unseen_count = 0;
-
-                        if (direction == 0)
-                                angular = -0.4;
-                        else
-                                angular = 0.4;
-                }
+               
                 else if ((left_laser_dist > 1)
                         && (left_laser_dist < 50)
                         && (direction == 0))
@@ -159,7 +150,7 @@ geometry_msgs::Twist _followWall(int direction)
                                 ROS_INFO("Sharp left!");
 
                                 linear = 0.05;
-                                angular = 0.4;
+                                angular = 0.3;
                         }
                 }
                 else if ((right_laser_dist > 1)
@@ -171,12 +162,12 @@ geometry_msgs::Twist _followWall(int direction)
                         right_unseen_count++;
 
                         if ((right_unseen_count > 40)
-                                && (right_unseen_count < 1500))
+                                && (right_unseen_count < 1000))
                         {
                                 ROS_INFO("Sharp right!");
 
                                 linear = 0.01;
-                                angular = -0.4;
+                                angular = -0.3;
                         }
                 }
         }

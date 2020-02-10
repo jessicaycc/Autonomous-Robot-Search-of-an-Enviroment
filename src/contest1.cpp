@@ -87,7 +87,7 @@ public:
 private:
         const double tol = 0.25;
         const double vlmax = 0.25;
-        const double vamax = 1;
+        const double vamax = 0.4;
 
         int state_timer;
         bool exploring;
@@ -111,6 +111,7 @@ private:
         void bumperCallback(const kobuki_msgs::BumperEvent::ConstPtr &msg);
         void mapCallback(const nav_msgs::OccupancyGrid::ConstPtr &msg);
 
+        bool bumperDetected();
         bool wallDetected();
         bool onPath();
         bool onTarget();
@@ -210,6 +211,20 @@ void Controller::reset()
         dir = Direction::LEFT;
 }
 
+bool Controller::bumperDetected()
+{
+       using kobuki_msgs::BumperEvent;
+
+        double min_dist;
+        double center_dist;
+
+        for (int i = 0; i < NUM_BUMPER; i++) {
+                if (bumper[i] == BumperEvent::PRESSED)
+                        return true;
+        }
+ 
+}
+
 bool Controller::wallDetected()
 {
         using kobuki_msgs::BumperEvent;
@@ -304,6 +319,10 @@ geometry_msgs::Twist Controller::update()
 
         /* Do not proceed if the state_timer is set.
          */
+        if (bumperDetected())
+        {
+                state_timer = 0;
+        }
         if (state_timer > 0) {
                 state_timer--;
                 return ret;
@@ -314,6 +333,7 @@ geometry_msgs::Twist Controller::update()
         switch (state)
         {
         case State::FOLLOW_WALL:
+                ROS_INFO("wall follow");
                 if (exploring && onTarget()) {
                         if (dir == Direction::LEFT)
                                 dir = Direction::RIGHT;
@@ -335,6 +355,7 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::BEE_LINE:
+                ROS_INFO("beeline");
                 if (!exploring && wallDetected()) {
                         state = State::FOLLOW_WALL;
                         state_timer = 400;
@@ -346,6 +367,7 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::GO_STRAIGHT:
+                ROS_INFO("go straight");
                 if (exploring && wallDetected()) {
                         dest.x = pose.x;
                         dest.y = pose.y;
@@ -382,7 +404,9 @@ int main(int argc, char **argv)
         using geometry_msgs::Twist;
 
         int timer = 0;
+        int timer2 = 0;
         time_point<system_clock> start;
+        time_point<system_clock> start2;
         time_point<system_clock> now;
 
         int index = 0;
@@ -416,7 +440,7 @@ int main(int argc, char **argv)
          */
         controller.start();
 
-        while (ros::ok() && (timer < 300)) {
+        while (ros::ok() && (timer < 180)) {
                 ros::spinOnce();
 
                 pub.publish(controller.update());
@@ -444,9 +468,10 @@ int main(int argc, char **argv)
         while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
 
-                if (controller.stopped()) {
-                       dest = list_of_frontiers.at(index++);
-                       controller.start(dest);
+                if (controller.stopped() || (timer2 > 60)) {
+                        dest = list_of_frontiers.at(index++);
+                        controller.start(dest);
+                        start2 = system_clock::now();
                 }
 
                 pub.publish(controller.update());
@@ -455,6 +480,7 @@ int main(int argc, char **argv)
 
                 now = system_clock::now();
                 timer = duration_cast<seconds>(now-start).count();
+                timer2 = duration_cast<seconds>(now-start2).count();
 
                 // ROS_INFO("Time: %d", timer);
         }
