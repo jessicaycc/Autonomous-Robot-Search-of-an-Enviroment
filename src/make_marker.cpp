@@ -8,7 +8,7 @@ const int shape = visualization_msgs::Marker::CUBE;
 void generateMarkers(ros::Publisher marker_pub, 
     std::vector<std::pair<double, double>> list_of_medians){
     visualization_msgs::Marker marker;
-    marker.header.frame_id = "/my_frame";
+    marker.header.frame_id = "/map";
     marker.header.stamp = ros::Time::now();
 
     // Set the namespace and id for this marker.  This serves to create a unique ID

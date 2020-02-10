@@ -441,7 +441,7 @@ int main(int argc, char **argv)
                 generate_markers(marker_pub, list_of_frontiers);
 #endif*/
 
-        while (ros::ok() && (timer < 300)) {
+        while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
 
                 if (controller.stopped()) {
