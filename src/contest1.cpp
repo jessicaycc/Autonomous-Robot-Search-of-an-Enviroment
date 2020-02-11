@@ -297,17 +297,28 @@ geometry_msgs::Twist Controller::update()
 {
         geometry_msgs::Twist ret;
 
+         if (bumperDetected() && state != State::FOLLOW_WALL )
+        {
+                state = State::FOLLOW_WALL;
+                state_timer = 50;
+                ret.linear.x = -0.1;
+                ret.angular.z = 0;
+                return ret;
+        }
         /* Decide velocity control signal from state.
          */
         switch (state)
         {
         case State::FOLLOW_WALL:
+                ROS_INFO("wall follow");
                 ret = followWall();
                 break;
         case State::BEE_LINE:
+                ROS_INFO("beeline");
                 ret = gotoPoint();
                 break;
         case State::GO_STRAIGHT:
+                ROS_INFO("go straight");
                 ret.linear.x = vlmax;
                 ret.angular.z = 0;
                 break;
@@ -319,10 +330,7 @@ geometry_msgs::Twist Controller::update()
 
         /* Do not proceed if the state_timer is set.
          */
-        if (bumperDetected())
-        {
-                state_timer = 0;
-        }
+       
         if (state_timer > 0) {
                 state_timer--;
                 return ret;
@@ -333,7 +341,7 @@ geometry_msgs::Twist Controller::update()
         switch (state)
         {
         case State::FOLLOW_WALL:
-                ROS_INFO("wall follow");
+                
                 if (exploring && onTarget()) {
                         if (dir == Direction::LEFT)
                                 dir = Direction::RIGHT;
@@ -355,7 +363,7 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::BEE_LINE:
-                ROS_INFO("beeline");
+                
                 if (!exploring && wallDetected()) {
                         state = State::FOLLOW_WALL;
                         state_timer = 400;
@@ -367,7 +375,7 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::GO_STRAIGHT:
-                ROS_INFO("go straight");
+                
                 if (exploring && wallDetected()) {
                         dest.x = pose.x;
                         dest.y = pose.y;
@@ -442,6 +450,38 @@ int main(int argc, char **argv)
 
         while (ros::ok() && (timer < 180)) {
                 ros::spinOnce();
+                /*
+                if (timer %10 ==0)
+                {
+                       for (int i =0; i <10; i++) 
+                       {
+                                geometry_msgs::Twist twist;
+                                twist.linear.x = 0;
+                                twist.angular.z = 0.3;
+                                pub.publish(twist);
+                                rate.sleep();
+
+                       }
+                       for (int i =0; i <20; i++) 
+                       {
+                                geometry_msgs::Twist twist;
+                                twist.linear.x = 0;
+                                twist.angular.z = -0.3;
+                                pub.publish(twist);
+                                rate.sleep();
+                       }
+                       for (int i =0; i <10; i++) 
+                       {
+                                geometry_msgs::Twist twist;
+                                twist.linear.x = 0;
+                                twist.angular.z = 0.3;
+                                pub.publish(twist);
+                                rate.sleep();
+                       }
+
+
+                }
+                */
 
                 pub.publish(controller.update());
 

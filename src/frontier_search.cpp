@@ -1,7 +1,9 @@
 #include "frontier_search.h"
 #include "globals.h"
 
-const int MEDIAN_SIZE_LIMITER = 50;
+const int MEDIAN_SIZE_LIMITER_upper = 50;
+const int MEDIAN_SIZE_LIMITER_lower = 3;
+
 const bool print_times = false;
 pair<int, int> map_grid;
 
@@ -37,10 +39,10 @@ vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontier
 
 	for (auto cur_front: list_of_frontiers){
 		std::cout << "Size of this median was: " << cur_front.size() << std::endl;
-		//if(cur_front.size() < MEDIAN_SIZE_LIMITER){
-		//	continue;
-		//}
-		split = cur_front.size()/MEDIAN_SIZE_LIMITER + 1;
+		if(cur_front.size() < MEDIAN_SIZE_LIMITER_lower){
+			continue;
+		}
+		split = cur_front.size()/MEDIAN_SIZE_LIMITER_upper + 1;
 
 		sort(cur_front.begin(), cur_front.end());
 		for (int i = 1; i <= split; i++){
@@ -52,7 +54,7 @@ vector<pair<int,int>> get_medians(vector<vector<pair<int,int>>> list_of_frontier
 			//double dist_x = (double)(cur_front[median_position].first - map_grid.first);
 			//double dist_y = (double)(cur_front[median_position].second - map_grid.second);
 			//heu_val = exp(size_exp) - exp(sqrt(pow(dist_x, 2) + pow(dist_y, 2)));
-			heu_val = exp(cur_front.size()/(double)split) - exp(sqrt(pow((double)(cur_front[median_position].first - map_grid.first), 2) + pow((double)(cur_front[median_position].second - map_grid.second), 2)));
+			heu_val = exp(cur_front.size()/(double)split) - sqrt(pow(res*(double)(cur_front[median_position].first - map_grid.first), 2) + pow(res*(double)(cur_front[median_position].second - map_grid.second), 2));
 			des_sort.push_back(make_pair(cur_front[median_position], heu_val));
 			//priority.push_back()
 		}

@@ -126,7 +126,7 @@ geometry_msgs::Twist _followWall(int direction)
                         ||(front_laser_dist >50)
                         ||(left_laser_dist > 50 && right_laser_dist > 50))
                 {
-                        linear = 0.05;
+                        linear = 0;
                         left_unseen_count = 0;
                         right_unseen_count = 0;
 
