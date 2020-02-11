@@ -445,21 +445,23 @@ int main(int argc, char **argv)
          */
         while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
+                try {
+                        if (index == max_index) {
+                                list_of_frontiers = frontier_medians(tf_listener);
+                                index = 0;
+                                max_index = list_of_frontiers.size();
+                        }
 
-                if (index == max_index) {
-                        list_of_frontiers = frontier_medians(tf_listener);
-                        index = 0;
-                        max_index = list_of_frontiers.size();
+                        if (controller.stopped() || (timer2 > 45)) {
+                                dest = list_of_frontiers.at(index++);
+                                controller.start(dest);
+                                start2 = system_clock::now();
+                        }
+
+                        pub.publish(controller.update());
+                } catch(...) {
+                        rate.sleep();
                 }
-
-                if (controller.stopped() || (timer2 > 45)) {
-                        dest = list_of_frontiers.at(index++);
-                        controller.start(dest);
-                        start2 = system_clock::now();
-                }
-
-                pub.publish(controller.update());
-
                 rate.sleep();
 
                 now = system_clock::now();
