@@ -17,7 +17,7 @@
 #include "globals.h"
 
 /*DISABLE RVIZ MARKERS */
-//#define DISABLE_VISUALIZATIONS 
+//#define DISABLE_VISUALIZATIONS
 /*
 #ifndef DISABLE_VISUALIZATIONS
 #include "make_marker.h"
@@ -213,7 +213,7 @@ void Controller::reset()
 
 bool Controller::bumperDetected()
 {
-       using kobuki_msgs::BumperEvent;
+        using kobuki_msgs::BumperEvent;
 
         double min_dist;
         double center_dist;
@@ -222,7 +222,7 @@ bool Controller::bumperDetected()
                 if (bumper[i] == BumperEvent::PRESSED)
                         return true;
         }
- 
+
 }
 
 bool Controller::wallDetected()
@@ -402,7 +402,7 @@ std::vector<pair<double,double>> frontier_medians(tf::TransformListener &tf_list
                 std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
                 occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
         } */
-        
+
         return list_of_medians;
 }
 
@@ -418,6 +418,7 @@ int main(int argc, char **argv)
         time_point<system_clock> now;
 
         int index = 0;
+        int max_index = 0;
         pair<double,double> dest;
         std::vector<pair<double,double>> list_of_frontiers;
 
@@ -495,18 +496,22 @@ int main(int argc, char **argv)
 
         controller.reset();
 
-        /* Use frontier search to finish unexplored areas of the map.
-         * Get list of frontiers from frontier search.
-         */
-        list_of_frontiers = frontier_medians(tf_listener);
-
 /*
 #ifndef DISABLE_VISUALIZATION
                 generate_markers(marker_pub, list_of_frontiers);
 #endif*/
 
+        /* Use frontier search to finish unexplored areas of the map.
+         * Get list of frontiers from frontier search.
+         */
         while (ros::ok() && (timer < 480)) {
                 ros::spinOnce();
+
+                if (index == max_index) {
+                        list_of_frontiers = frontier_medians(tf_listener);
+                        index = 0;
+                        max_index = list_of_frontiers.size();
+                }
 
                 if (controller.stopped() || (timer2 > 60)) {
                         dest = list_of_frontiers.at(index++);
