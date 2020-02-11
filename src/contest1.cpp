@@ -299,9 +299,10 @@ geometry_msgs::Twist Controller::update()
 
          if (bumperDetected() && state != State::FOLLOW_WALL )
         {
+                ROS_INFO("BUMP");
                 state = State::FOLLOW_WALL;
                 state_timer = 50;
-                ret.linear.x = -0.1;
+                ret.linear.x = 0;
                 ret.angular.z = 0;
                 return ret;
         }
