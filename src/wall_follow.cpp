@@ -161,7 +161,7 @@ geometry_msgs::Twist _followWall(int direction)
                         angular = -0.2;
                         right_unseen_count++;
 
-                        if ((right_unseen_count > 40)
+                        if ((right_unseen_count > 60)
                                 && (right_unseen_count < 1000))
                         {
                                 ROS_INFO("Sharp right!");

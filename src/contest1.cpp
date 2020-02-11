@@ -297,7 +297,7 @@ geometry_msgs::Twist Controller::update()
 {
         geometry_msgs::Twist ret;
 
-         if (bumperDetected() && state != State::FOLLOW_WALL )
+         if (bumperDetected() && state != State::FOLLOW_WALL && state != State::GO_STRAIGHT)
         {
                 ROS_INFO("BUMP");
                 state = State::FOLLOW_WALL;
@@ -528,7 +528,7 @@ int main(int argc, char **argv)
                 timer = duration_cast<seconds>(now-start).count();
                 timer2 = duration_cast<seconds>(now-start2).count();
 
-                // ROS_INFO("Time: %d", timer);
+                ROS_INFO("Time: %d", timer);
         }
 
         return 0;
