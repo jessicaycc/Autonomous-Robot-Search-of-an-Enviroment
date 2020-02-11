@@ -13,15 +13,7 @@
 
 #include "wall_follow.h"
 #include "frontier_search.h"
-
 #include "globals.h"
-
-/*DISABLE RVIZ MARKERS */
-//#define DISABLE_VISUALIZATIONS
-/*
-#ifndef DISABLE_VISUALIZATIONS
-#include "make_marker.h"
-#endif*/
 
 /* Occupancy grid callback globals */
 int occ_width = 0;  //Occupancy grid meta data
@@ -222,7 +214,6 @@ bool Controller::bumperDetected()
                 if (bumper[i] == BumperEvent::PRESSED)
                         return true;
         }
-
 }
 
 bool Controller::wallDetected()
@@ -297,7 +288,7 @@ geometry_msgs::Twist Controller::update()
 {
         geometry_msgs::Twist ret;
 
-         if (bumperDetected() && state != State::FOLLOW_WALL && state != State::GO_STRAIGHT)
+        if (bumperDetected() && state != State::FOLLOW_WALL && state != State::GO_STRAIGHT)
         {
                 ROS_INFO("BUMP");
                 state = State::FOLLOW_WALL;
@@ -306,6 +297,7 @@ geometry_msgs::Twist Controller::update()
                 ret.angular.z = 0;
                 return ret;
         }
+
         /* Decide velocity control signal from state.
          */
         switch (state)
@@ -331,7 +323,6 @@ geometry_msgs::Twist Controller::update()
 
         /* Do not proceed if the state_timer is set.
          */
-       
         if (state_timer > 0) {
                 state_timer--;
                 return ret;
@@ -342,7 +333,6 @@ geometry_msgs::Twist Controller::update()
         switch (state)
         {
         case State::FOLLOW_WALL:
-                
                 if (exploring && onTarget()) {
                         if (dir == Direction::LEFT)
                                 dir = Direction::RIGHT;
@@ -364,7 +354,6 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::BEE_LINE:
-                
                 if (!exploring && wallDetected()) {
                         state = State::FOLLOW_WALL;
                         state_timer = 400;
@@ -376,7 +365,6 @@ geometry_msgs::Twist Controller::update()
                 }
                 break;
         case State::GO_STRAIGHT:
-                
                 if (exploring && wallDetected()) {
                         dest.x = pose.x;
                         dest.y = pose.y;
@@ -393,16 +381,9 @@ geometry_msgs::Twist Controller::update()
 
 std::vector<pair<double,double>> frontier_medians(tf::TransformListener &tf_listener)
 {
-        /*Returns a vector of pairs of x,y coordinates as destination targets */
+        /* Returns a vector of pairs of x,y coordinates as destination targets.
+         */
         std::vector<pair<double,double>> list_of_medians = wfd(tf_listener);
-
-        /*
-        //Debugging code to plot the medians on occ_grid
-        std::cout << "Obtained list of medians: There were " << list_of_medians.size() << std::endl;
-        for(int i = 0; i<list_of_medians.size(); i++){
-                std::cout << "x/y = (" << list_of_medians[i].first << ", " << list_of_medians[i].second << endl;
-                occ_grid[list_of_medians[i].first][list_of_medians[i].second] = 50;
-        } */
 
         return list_of_medians;
 }
@@ -435,12 +416,6 @@ int main(int argc, char **argv)
 
         pub = nh.advertise<Twist>("cmd_vel_mux/input/teleop", 1);
 
-        /* For visualization, disable during real run */
-/*
-#ifndef DISABLE_VISUALIZATION
-        ros::Publisher marker_pub = n.advertise<visualization_msgs::Marker>("visualization_marker", 1);
-#endif*/
-
         /* Start the clock, 8 minutes.
          */
         start = system_clock::now();
@@ -450,40 +425,8 @@ int main(int argc, char **argv)
          */
         controller.start();
 
-        while (ros::ok() && (timer < 180)) {
+        while (ros::ok() && (timer < 300)) {
                 ros::spinOnce();
-                /*
-                if (timer %10 ==0)
-                {
-                       for (int i =0; i <10; i++) 
-                       {
-                                geometry_msgs::Twist twist;
-                                twist.linear.x = 0;
-                                twist.angular.z = 0.3;
-                                pub.publish(twist);
-                                rate.sleep();
-
-                       }
-                       for (int i =0; i <20; i++) 
-                       {
-                                geometry_msgs::Twist twist;
-                                twist.linear.x = 0;
-                                twist.angular.z = -0.3;
-                                pub.publish(twist);
-                                rate.sleep();
-                       }
-                       for (int i =0; i <10; i++) 
-                       {
-                                geometry_msgs::Twist twist;
-                                twist.linear.x = 0;
-                                twist.angular.z = 0.3;
-                                pub.publish(twist);
-                                rate.sleep();
-                       }
-
-
-                }
-                */
 
                 pub.publish(controller.update());
 
@@ -492,15 +435,10 @@ int main(int argc, char **argv)
                 now = system_clock::now();
                 timer = duration_cast<seconds>(now-start).count();
 
-                // ROS_INFO("Time: %d", timer);
+                ROS_INFO("Time: %d", timer);
         }
 
         controller.reset();
-
-/*
-#ifndef DISABLE_VISUALIZATION
-                generate_markers(marker_pub, list_of_frontiers);
-#endif*/
 
         /* Use frontier search to finish unexplored areas of the map.
          * Get list of frontiers from frontier search.
@@ -514,7 +452,7 @@ int main(int argc, char **argv)
                         max_index = list_of_frontiers.size();
                 }
 
-                if (controller.stopped() || (timer2 > 60)) {
+                if (controller.stopped() || (timer2 > 45)) {
                         dest = list_of_frontiers.at(index++);
                         controller.start(dest);
                         start2 = system_clock::now();
