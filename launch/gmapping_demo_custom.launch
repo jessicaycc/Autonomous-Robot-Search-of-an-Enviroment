@@ -1,16 +1,7 @@
 <launch>
   <!-- 3D sensor -->
-  <arg name="3d_sensor" default="$(env TURTLEBOT_3D_SENSOR)"/>
+  <arg name="3d_sensor" default="$(env TURTLEBOT_3D_SENSOR)"/> 
   <!-- r200, kinect, asus_xtion_pro -->
-  <include file="$(find turtlebot_bringup)/launch/3dsensor.launch">
-    <arg name="rgb_processing" value="false" />
-    <arg name="depth_registration" value="false" />
-    <arg name="depth_processing" value="false" />
-
-    <!-- We must specify an absolute topic name because if not it will be prefixed by "$(arg camera)".
-         Probably is a bug in the nodelet manager: https://github.com/ros/nodelet_core/issues/7 -->
-    <arg name="scan_topic" value="/scan" />
-  </include>
 
   <!-- Gmapping -->
   <arg name="scan_topic" default="scan" />
@@ -24,7 +15,7 @@
     <param name="maxUrange" value="6.0"/>
     <param name="maxRange" value="8.0"/>
     <param name="sigma" value="0.05"/>
-    <param name="kernelSize" value="1"/>
+    <param name="kernelSize" value="1"/> 
     <param name="lstep" value="0.05"/>
     <param name="astep" value="0.05"/>
     <param name="iterations" value="5"/>
